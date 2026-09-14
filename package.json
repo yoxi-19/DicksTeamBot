@@ -1,0 +1,40 @@
+{
+  "name": "dicks-teambot",
+  "version": "1.0.0",
+  "description": "Team DICKS Bot - Verbindet Discord, Minecraft und ein Web-Dashboard.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "node --watch server/index.js",
+    "dev:all": "concurrently \"npm run dev\" \"cd dashboard && npm run dev\"",
+    "start": "node server/index.js",
+    "build": "cd dashboard && npm install && npm run build",
+    "setup": "node server/index.js --setup",
+    "lint": "node --check server/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cookie-parser": "^1.4.7",
+    "csurf": "^1.11.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mime": "^4.0.4",
+    "mineflayer": "^4.23.0",
+    "socket.io": "^4.8.1",
+    "winston": "^3.15.0"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
+  }
+}

@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  windsmp-teambot:
+    build: .
+    container_name: windsmp-teambot
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./database:/app/database
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

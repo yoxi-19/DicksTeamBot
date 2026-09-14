@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-windsmp-darkest text-gray-100 antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(106, 147, 176, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(174, 198, 207, 0.03) 0%, transparent 50%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-windsmp-border rounded-full;
+    transition: background 0.2s;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-windsmp-secondary/60;
+  }
+
+  ::selection {
+    @apply bg-windsmp-primary/25 text-white;
+  }
+}
+
+@layer components {
+  /* === Cards === */
+  .card {
+    @apply bg-windsmp-card/80 backdrop-blur-sm border border-windsmp-border/60 rounded-2xl p-6;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 0 20px rgba(174, 198, 207, 0.04);
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300;
+  }
+  .card-hover:hover {
+    @apply border-windsmp-primary/20;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 30px rgba(174, 198, 207, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .card-glass {
+    @apply bg-windsmp-card/50 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .card-glow {
+    @apply card relative overflow-hidden;
+  }
+  .card-glow::before {
+    content: '';
+    @apply absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500;
+    background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(174, 198, 207, 0.06), transparent 40%);
+  }
+  .card-glow:hover::before {
+    @apply opacity-100;
+  }
+
+  /* === Buttons === */
+  .btn-primary {
+    @apply relative overflow-hidden bg-windsmp-primary/15 text-windsmp-primary border border-windsmp-primary/25
+           rounded-xl px-5 py-2.5 font-medium transition-all duration-300
+           hover:bg-windsmp-primary/25 hover:border-windsmp-primary/40 hover:shadow-glow
+           active:scale-[0.97] active:shadow-none;
+  }
+  .btn-primary::after {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent -translate-x-full;
+    transition: transform 0.5s;
+  }
+  .btn-primary:hover::after {
+    @apply translate-x-full;
+  }
+
+  .btn-danger {
+    @apply relative overflow-hidden bg-red-500/10 text-red-400 border border-red-500/20
+           rounded-xl px-5 py-2.5 font-medium transition-all duration-300
+           hover:bg-red-500/20 hover:border-red-500/35 hover:shadow-[0_0_20px_rgba(239,68,68,0.1)]
+           active:scale-[0.97] active:shadow-none;
+  }
+
+  .btn-success {
+    @apply relative overflow-hidden bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+           rounded-xl px-5 py-2.5 font-medium transition-all duration-300
+           hover:bg-emerald-500/20 hover:border-emerald-500/35 hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]
+           active:scale-[0.97] active:shadow-none;
+  }
+
+  .btn-ghost {
+    @apply text-gray-400 border border-transparent rounded-xl px-4 py-2 font-medium transition-all duration-200
+           hover:text-gray-200 hover:bg-white/[0.04] hover:border-white/[0.06]
+           active:scale-[0.97];
+  }
+
+  /* === Inputs === */
+  .input-field {
+    @apply bg-windsmp-darker/80 border border-windsmp-border/70 rounded-xl px-4 py-2.5
+           text-gray-100 placeholder-gray-600 outline-none transition-all duration-300
+           focus:border-windsmp-primary/40 focus:bg-windsmp-darker focus:shadow-glow;
+  }
+  .input-field::placeholder {
+    @apply text-gray-600;
+  }
+
+  /* === Badges === */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium backdrop-blur-sm;
+  }
+
+  .badge-green {
+    @apply badge bg-emerald-500/15 text-emerald-400 border border-emerald-500/20;
+  }
+  .badge-yellow {
+    @apply badge bg-amber-500/15 text-amber-400 border border-amber-500/20;
+  }
+  .badge-red {
+    @apply badge bg-red-500/15 text-red-400 border border-red-500/20;
+  }
+  .badge-blue {
+    @apply badge bg-sky-500/15 text-sky-400 border border-sky-500/20;
+  }
+  .badge-gray {
+    @apply badge bg-gray-500/15 text-gray-400 border border-gray-500/20;
+  }
+  .badge-purple {
+    @apply badge bg-purple-500/15 text-purple-400 border border-purple-500/20;
+  }
+  .badge-pink {
+    @apply badge bg-pink-500/15 text-pink-400 border border-pink-500/20;
+  }
+
+  /* === Tables === */
+  .table-row {
+    @apply border-b border-windsmp-border/30 transition-colors duration-150;
+  }
+  .table-row:hover {
+    @apply bg-windsmp-primary/[0.04];
+  }
+
+  /* === Dividers === */
+  .divider {
+    @apply border-t border-windsmp-border/40;
+  }
+
+  /* === Glow indicator dot === */
+  .status-dot {
+    @apply relative w-2 h-2 rounded-full;
+  }
+  .status-dot::after {
+    content: '';
+    @apply absolute inset-0 rounded-full animate-ping opacity-30;
+  }
+  .status-dot-green {
+    @apply bg-emerald-400;
+  }
+  .status-dot-green::after {
+    @apply bg-emerald-400;
+  }
+  .status-dot-red {
+    @apply bg-red-400;
+  }
+  .status-dot-red::after {
+    @apply bg-red-400;
+  }
+
+  /* === Sidebar Nav Item === */
+  .nav-item {
+    @apply flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium
+           text-gray-500 transition-all duration-200
+           hover:text-gray-300 hover:bg-white/[0.04];
+  }
+  .nav-item-active {
+    @apply nav-item text-windsmp-primary bg-windsmp-primary/[0.08] border border-windsmp-primary/15;
+    box-shadow: 0 0 20px rgba(174, 198, 207, 0.05), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  /* === Gradient text === */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-windsmp-primary via-windsmp-accent to-windsmp-secondary;
+  }
+
+  /* === Animated border === */
+  .border-glow {
+    @apply relative border border-windsmp-border/40 rounded-2xl;
+  }
+  .border-glow::before {
+    content: '';
+    @apply absolute -inset-px rounded-2xl opacity-0 transition-opacity duration-500;
+    background: linear-gradient(135deg, rgba(174, 198, 207, 0.15), transparent, rgba(106, 147, 176, 0.15));
+    z-index: -1;
+  }
+  .border-glow:hover::before {
+    @apply opacity-100;
+  }
+}
