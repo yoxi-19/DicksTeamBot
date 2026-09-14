@@ -13,7 +13,7 @@ export async function handleButtonInteraction(interaction, client) {
   const customId = interaction.customId;
 
   try {
-    if (customId === 'btn_verify_start') {
+    if (customId === 'btn_verify_start' || customId === 'modal_verify_retry') {
       await showVerifyModal(interaction);
     } else if (customId === 'btn_team_join') {
       await showTeamModal(interaction);

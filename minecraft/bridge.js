@@ -517,8 +517,40 @@ export class MinecraftBridge {
       }
     } else {
       if (senderIgn) {
-        this.sendMessage(`/msg ${senderIgn} Verifizierung fehlgeschlagen: ${result.message}`);
+        if (result.message === 'MISMATCH') {
+          this.sendMessage(`/msg ${senderIgn} Verifizierung fehlgeschlagen. Der Code gehoert nicht zu diesem Konto. Bitte pruefe im Discord, ob du den richtigen Minecraft-Namen angegeben hast.`);
+          // DM mit Retry-Button senden
+          this._sendVerifyRetryDm(result.discordId);
+        } else {
+          this.sendMessage(`/msg ${senderIgn} Verifizierung fehlgeschlagen: ${result.message}`);
+        }
       }
+    }
+  }
+
+  /**
+   * Sendet eine DM mit Retry-Button an den Discord-Nutzer bei Verifizierungsfehler.
+   * @param {string} discordId
+   */
+  async _sendVerifyRetryDm(discordId) {
+    if (!this.discordClient || !discordId) return;
+    try {
+      const user = await this.discordClient.users.fetch(discordId);
+      if (!user) return;
+      const dm = await user.createDM();
+      const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('modal_verify_retry')
+          .setLabel('Erneut versuchen')
+          .setStyle(ButtonStyle.Primary),
+      );
+      await dm.send({
+        content: 'Dein Verifizierungscode wurde nicht akzeptiert. Der eingegebene Minecraft-Name passt nicht zum Konto, das den Code gesendet hat.\n\nBitte verifiziere dich mit dem richtigen Minecraft-Namen:',
+        components: [row],
+      });
+    } catch (err) {
+      logger.warn(`[Minecraft] Konnte keine DM an ${discordId} senden: ${err.message}`);
     }
   }
 

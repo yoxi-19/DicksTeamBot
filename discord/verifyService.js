@@ -65,9 +65,9 @@ export async function completeVerification(client, code, submittedIgn) {
     return { ok: false, message: 'Ungueltiger oder abgelaufener Code.' };
   }
 
-  // Optional: IGN-Abgleich, wenn der Spielername bekannt ist.
+  // IGN-Abgleich: Pruefen ob der Spieler, der den Code sendet, der richtige ist.
   if (submittedIgn && record.ign.toLowerCase() !== submittedIgn.toLowerCase()) {
-    return { ok: false, message: `Der Code gehoert zu "${record.ign}", nicht zu "${submittedIgn}".` };
+    return { ok: false, message: 'MISMATCH', discordId: record.discord_id };
   }
 
   const discordId = record.discord_id;

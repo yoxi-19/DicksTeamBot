@@ -12,6 +12,7 @@ import { hexToDecimal } from '../../shared/types.js';
 export function buildVerifyPanelEmbed() {
   const colors = configService.getColors();
   const primaryColor = colors.primary || 'AEC6CF';
+  const botName = configService.env.minecraftUsername || 'WindBot';
 
   return new EmbedBuilder()
     .setColor(hexToDecimal(primaryColor))
@@ -25,7 +26,7 @@ export function buildVerifyPanelEmbed() {
       '2. Gib deinen exakten Minecraft-Namen (IGN) ein.\n' +
       '3. Du erhaeltst einen 6-stelligen Code (gueltig fuer 5 Minuten).\n' +
       '4. Verbinde dich mit dem Minecraft-Server und schreibe im Chat:\n' +
-      '   `/msg WindBot <DEIN_CODE>`\n\n' +
+      `   \`/msg ${botName} <DEIN_CODE>\`\n\n` +
       '*Dein Discord-Nickname wird automatisch an deinen Spielernamen angepasst.*',
     )
     .setFooter({ text: 'Team DICKS Bot • Automatische Verifizierung' })

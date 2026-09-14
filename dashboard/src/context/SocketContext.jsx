@@ -16,6 +16,7 @@ export function SocketProvider({ children }) {
   const [applications, setApplications] = useState([]);
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [services, setServices] = useState({ discord: { running: false }, minecraft: { running: false } });
+  const [afkAccounts, setAfkAccounts] = useState([]);
 
   useEffect(() => {
     if (!isAuthenticated || !token) return;
@@ -99,6 +100,24 @@ export function SocketProvider({ children }) {
         setServices(data);
       }
     });
+    newSocket.on('afkUpdate', (data) => {
+      if (data && data.username) {
+        setAfkAccounts((prev) => {
+          const idx = prev.findIndex((a) => a.username === data.username);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = data;
+            return next;
+          }
+          return [...prev, data];
+        });
+      }
+    });
+    newSocket.on('afkRemove', (data) => {
+      if (data && data.username) {
+        setAfkAccounts((prev) => prev.filter((a) => a.username !== data.username));
+      }
+    });
     newSocket.on('joinLeave', (data) => {
       // Join/Leave-Events werden auch in messages angezeigt
       if (data && data.ign) {
@@ -131,6 +150,7 @@ export function SocketProvider({ children }) {
         applications,
         consoleLogs,
         services,
+        afkAccounts,
       }}
     >
       {children}

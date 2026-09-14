@@ -105,6 +105,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
     buttonTtlMs: 0,
   },
 
+  // AFK-Bots: Liste von MC-Konten, die auf dem Server AFK stehen
+  afkAccounts: [],
+
   // Regex-Muster fuer die Minecraft-Bridge.
   // Alle erkannten Muster sind konfigurierbar und NICHT hart kodiert.
   patterns: {

@@ -17,6 +17,7 @@ import configService from './config.js';
 import { initSocket } from './socket/index.js';
 import { DiscordBot } from '../discord/bot.js';
 import { bridgeInstance } from '../minecraft/index.js';
+import { afkManager } from '../minecraft/afkManager.js';
 
 // Routen
 import authRoutes from './routes/auth.js';
@@ -28,6 +29,7 @@ import settingRoutes from './routes/settings.js';
 import messageRoutes from './routes/messages.js';
 import chatRoutes from './routes/chat.js';
 import serviceRoutes, { setInstances } from './routes/services.js';
+import afkRoutes from './routes/afk.js';
 
 // Middleware
 import { rateLimit } from './middleware/rateLimit.js';
@@ -77,6 +79,7 @@ async function main() {
   app.use('/api/messages', messageRoutes);
   app.use('/api/chat', chatRoutes);
   app.use('/api/services', serviceRoutes);
+  app.use('/api/afk', afkRoutes);
 
   // Health-Check
   app.get('/api/health', (req, res) => {
@@ -130,11 +133,15 @@ async function main() {
   // 8. Minecraft-Bridge starten
   bridgeInstance.start();
 
+  // 8b. AFK-Bots starten
+  afkManager.loadFromConfig();
+
   // 9. Graceful Shutdown
   const shutdown = (signal) => {
     logger.info(`[Server] ${signal} empfangen. Herunterfahren...`);
     discordBot.stop();
     bridgeInstance.stop();
+    afkManager.stopAll();
     httpServer.close(() => {
       closeDatabase();
       logger.info('[Server] Sauber heruntergefahren.');

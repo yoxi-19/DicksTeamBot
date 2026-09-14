@@ -1,6 +1,6 @@
-# WindSMP TeamBot
+# Team DICKS TeamBot
 
-Vollstaendiges Bot-System fuer den WindSMP Minecraft-Server. Verbindet Discord, Minecraft und ein Web-Dashboard miteinander.
+Vollstaendiges Bot-System fuer den Minecraft-Server. Verbindet Discord, Minecraft und ein Web-Dashboard in einem einzigen Prozess.
 
 ---
 
@@ -15,20 +15,23 @@ Vollstaendiges Bot-System fuer den WindSMP Minecraft-Server. Verbindet Discord, 
 - Live-Logging mit farbcodierten Embeds
 
 ### Minecraft Bridge
-- Mineflayer-Integration mit automatischer Wiederverbindung
-- Konfigurierbare Regex-Erkennung fuer Chat, System, Join/Leave, Zahlungen
+- Mineflayer-Integration mit automatischer Wiederverbindung (konfigurierbar)
+- Konfigurierbare Regex-Erkennung fuer Chat, System, Join/Leave, Zahlungen, Auktionen, Commands
+- Fallback-Heuristik fuer unbekannte Nachrichtenformate
 - Verifizierungscode-Erkennung per `/msg`
 - Team-Einladungen per `/team invite`
 - TPS- und Ping-Ueberwachung
+- Chat-Eingabe ueber das Dashboard (mit Passwort-Schutz)
 
 ### Web Dashboard
-- React + Vite + TailwindCSS (Dark Theme, WindSMP-Farben)
+- React + Vite + TailwindCSS (Dark Theme)
 - Live-Updates via WebSocket (Socket.IO)
-- Uebersichtsseite mit Bot-Status und Statistiken
+- Uebersichtsseite mit Bot-Status, Statistiken und Online-Spielern
 - Spieler-Verwaltung mit Suche und Sortierung
-- Bewerbungs-System (Annehmen/Ablehnen)
-- Live-Minecraft-Chat mit Kategorie-Filtern
-- Log-Ansicht mit Export-Funktion
+- Team-Verwaltung (Join-Anfragen annehmen/ablehnen, Mitglieder)
+- Live-Minecraft-Chat (Monospace, wie ingame)
+- Console mit Live-Serverlogs (Level-Filter, Suche)
+- Service-Steuerung (Discord/Minecraft Bot starten/stoppen, Auto-Reconnect)
 - Einstellungen (Regex, Rollen, Farben, Timeouts)
 
 ---
@@ -45,7 +48,7 @@ Du hast noch nichts? Kein Problem. Hier ist jeder einzelne Schritt.
 
 1. Gehe zu https://discord.com/developers/applications
 2. Klicke oben rechts auf **"New Application"**
-3. Gib einen Namen ein (z.B. `WindSMP Bot`) und erstelle
+3. Gib einen Namen ein (z.B. `Team DICKS Bot`) und erstelle
 4. Gehe links zu **"Bot"**
 5. Klicke auf **"Reset Token"** und kopiere den Token (**merk dir den, du brauchst ihn spaeter!**)
 6. Aktiviere diese Berechtigungen unter "Privileged Gateway Intents":
@@ -71,7 +74,7 @@ Dann kannst du mit Rechtsklick auf Kanaele/Rollen die IDs kopieren:
 - **Log-Kanal-ID:** Rechtsklick auf den Log-Kanal -> Kanal-ID kopieren
 - **Verified-Rollen-ID:** Rechtsklick auf die Verified-Rolle -> Rollen-ID kopieren
 - **Team-Rollen-ID:** Rechtsklick auf die Team-Rolle -> Rollen-ID kopieren
-- **Join-Rollen-ID:** Reightsklick auf die Join-Rolle -> Rollen-ID kopieren
+- **Join-Rollen-ID:** Rechtsklick auf die Join-Rolle -> Rollen-ID kopieren
 
 > Notiere dir diese IDs, du brauchst sie in der `.env`-Datei.
 
@@ -86,7 +89,7 @@ Falls Bot und Minecraft-Server auf demselben Rechner/VPS laufen:
 
 #### 1.4 Projekt-Ordner lokal
 
-Der Projekt-Ordner (`Team Dicks Bots`) enthaelt bereits alle Dateien. Stelle sicher, dass er vollstaendig ist.
+Der Projekt-Ordner enthaelt bereits alle Dateien. Stelle sicher, dass er vollstaendig ist.
 
 ---
 
@@ -127,11 +130,11 @@ DISCORD_CLIENT_ID=HIER_DEINE_APP_ID_EINTRAGEN
 # Minecraft
 MINECRAFT_HOST=localhost
 MINECRAFT_PORT=25565
-MINECRAFT_USERNAME=WindBot
-MINECRAFT_AUTH=minecraft
+MINECRAFT_USERNAME=DeinMCName
+MINECRAFT_AUTH=microsoft
 MINECRAFT_PASSWORD=
 MINECRAFT_VERSION=
-MINECRAFT_PROFILES_FOLDER=./mineflayer
+MINECRAFT_PROFILES_FOLDER=
 
 # Server
 PORT=3000
@@ -140,7 +143,7 @@ SESSION_SECRET=ZUFALLSGENERIERTER_LANGER_TEXT_HIER_EINTRAGEN
 JWT_EXPIRES_IN=7d
 
 # Datenbank
-DATABASE_PATH=./database/windsmp.sqlite
+DATABASE_PATH=./database/teamdicks.sqlite
 
 # Dashboard Login
 DASHBOARD_ADMIN_USER=admin
@@ -174,13 +177,14 @@ Falls ein Fehler kommt:
 - Pruefe den `DISCORD_TOKEN` in der `.env`
 - Pruefe die `DISCORD_GUILD_ID`
 
-#### 2.6 Minecraft-Session erstellen (falls Microsoft-Auth)
+#### 2.6 Minecraft-Session erstellen (Microsoft-Auth)
 
-Falls dein Minecraft-Konto einen Microsoft-Account hat:
-1. Der Bot zeigt beim Start eine URL an oder oeffnet den Browser
-2. Logge dich mit deinem Microsoft-Konto ein
-3. Danach entsteht der Ordner `mineflayer/` mit der Session-Datei
-4. Dieser Ordner wird spaeter auf den VPS kopiert
+Da `MINECRAFT_AUTH=microsoft` gesetzt ist:
+1. Der Bot zeigt beim Start eine URL und einen Code an
+2. Oeffne die URL im Browser und logge dich mit deinem Microsoft-Konto ein
+3. Gib den Code ein
+4. Danach werden die Session-Tokens im Cache gespeichert
+5. Auf dem VPS: Lokal einloggen, dann den Cache-Ordner uebertragen
 
 > Bei `MINECRAFT_AUTH=offline` (cracked Server) wird kein Microsoft-Login benoetigt.
 
@@ -209,8 +213,8 @@ Falls noch nicht vorhanden: https://github.com ein Konto erstellen.
 #### 3.2 Neues Repository erstellen
 
 1. Auf GitHub oben rechts auf **"+"** klicken -> **"New repository"**
-2. **Repository name:** `windsmp-teambot`
-3. **Description:** `WindSMP TeamBot - Discord, Minecraft, Dashboard`
+2. **Repository name:** `DicksTeamBot`
+3. **Description:** `Team DICKS TeamBot - Discord, Minecraft, Dashboard`
 4. Waehle **Public** oder **Private**
 5. **NICHT** "Add a README file" anhaken (wir haben schon eine)
 6. Klicke **"Create repository"**
@@ -224,15 +228,15 @@ cd "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots"
 
 git init
 git add .
-git commit -m "Init WindSMP TeamBot"
+git commit -m "Init Team DICKS TeamBot"
 git branch -M main
-git remote add origin https://github.com/DEIN-USERNAME/windsmp-teambot.git
+git remote add origin https://github.com/DEIN-USERNAME/DicksTeamBot.git
 git push -u origin main
 ```
 
 > Ersetze `DEIN-USERNAME` durch deinen echten GitHub-Benutzernamen!
 
-> Die `.env`-Datei und der `mineflayer/` Ordner werden NICHT hochgeladen (stehen in `.gitignore`).
+> Die `.env`-Datei und der Session-Cache werden NICHT hochgeladen (stehen in `.gitignore`).
 
 ---
 
@@ -283,8 +287,8 @@ npm -v   # Sollte 10.x zeigen
 
 ```bash
 cd /home
-git clone https://github.com/DEIN-USERNAME/windsmp-teambot.git
-cd windsmp-teambot
+git clone https://github.com/DEIN-USERNAME/DicksTeamBot.git
+cd DicksTeamBot
 ```
 
 > Ersetze `DEIN-USERNAME` durch deinen GitHub-Benutzernamen!
@@ -295,10 +299,10 @@ cd windsmp-teambot
 
 ```bash
 # .env-Datei kopieren
-scp "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots\.env" root@DEINE_VPS_IP:/home/windsmp-teambot/
+scp "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots\.env" root@DEINE_VPS_IP:/home/DicksTeamBot/
 
-# Minecraft-Session kopieren (falls vorhanden)
-scp -r "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots\mineflayer" root@DEINE_VPS_IP:/home/windsmp-teambot/
+# Minecraft-Session-Cache kopieren (falls vorhanden)
+scp -r "%USERPROFILE%\.minecraft\nmp-cache" root@DEINE_VPS_IP:/home/DicksTeamBot/.minecraft/
 ```
 
 > Ersetze `DEINE_VPS_IP` durch die echte IP deines VPS!
@@ -306,15 +310,14 @@ scp -r "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots\mineflayer" root@DEINE_VPS
 
 Pruefe auf dem VPS ob die Dateien da sind:
 ```bash
-ls -la /home/windsmp-teambot/.env
-ls -la /home/windsmp-teambot/mineflayer/
+ls -la /home/DicksTeamBot/.env
 ```
 
 #### 4.6 Dependencies installieren und Dashboard bauen
 
 Auf dem VPS:
 ```bash
-cd /home/windsmp-teambot
+cd /home/DicksTeamBot
 npm install
 cd dashboard && npm install && npm run build && cd ..
 ```
@@ -340,8 +343,8 @@ Auf dem VPS:
 npm install -g pm2
 
 # Bot starten
-cd /home/windsmp-teambot
-pm2 start server/index.js --name windsmp-teambot
+cd /home/DicksTeamBot
+pm2 start server/index.js --name dicksteambot
 
 # Autostart bei Server-Neustart aktivieren
 pm2 save
@@ -352,7 +355,7 @@ pm2 startup
 Pruefen ob alles laeuft:
 ```bash
 pm2 status
-pm2 logs windsmp-teambot
+pm2 logs dicksteambot
 ```
 
 Im Terminal sollte stehen:
@@ -372,7 +375,7 @@ Login: `admin` / `admin123` (oder was du in `.env` eingetragen hast)
 
 ### PHASE 6: Domain + SSL einrichten (optional)
 
-Falls du eine eigene Domain nutzen moechtest (z.B. `bot.windsmp.de`):
+Falls du eine eigene Domain nutzen moechtest (z.B. `bot.dicks.de`):
 
 #### 6.1 DNS einrichten
 
@@ -394,14 +397,14 @@ apt install -y nginx
 #### 6.3 Nginx-Config erstellen
 
 ```bash
-nano /etc/nginx/sites-available/windsmp
+nano /etc/nginx/sites-available/dicks
 ```
 
-Folgenden Inhalt einfügen:
+Folgenden Inhalt einfuegen:
 ```nginx
 server {
     listen 80;
-    server_name bot.windsmp.de;
+    server_name bot.dicks.de;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -417,14 +420,14 @@ server {
 }
 ```
 
-> Ersetze `bot.windsmp.de` durch deine echte Domain!
+> Ersetze `bot.dicks.de` durch deine echte Domain!
 
 Speichern mit `Strg + O`, Enter, `Strg + X`.
 
 #### 6.4 Nginx aktivieren
 
 ```bash
-ln -s /etc/nginx/sites-available/windsmp /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/dicks /etc/nginx/sites-enabled/
 nginx -t
 systemctl reload nginx
 ```
@@ -433,31 +436,31 @@ systemctl reload nginx
 
 ```bash
 apt install -y certbot python3-certbot-nginx
-certbot --nginx -d bot.windsmp.de
+certbot --nginx -d bot.dicks.de
 ```
 
-> Ersetze `bot.windsmp.de` durch deine Domain!
+> Ersetze `bot.dicks.de` durch deine Domain!
 > Folge den Anweisungen im Terminal.
 
 #### 6.6 .env anpassen
 
 Auf dem VPS:
 ```bash
-cd /home/windsmp-teambot
+cd /home/DicksTeamBot
 nano .env
 ```
 
 `DASHBOARD_URL` aendern:
 ```env
-DASHBOARD_URL=https://bot.windsmp.de
+DASHBOARD_URL=https://bot.dicks.de
 ```
 
 Speichern und Bot neu starten:
 ```bash
-pm2 restart windsmp-teambot
+pm2 restart dicksteambot
 ```
 
-Jetzt ist das Dashboard unter `https://bot.windsmp.de` erreichbar!
+Jetzt ist das Dashboard unter `https://bot.dicks.de` erreichbar!
 
 ---
 
@@ -466,17 +469,21 @@ Jetzt ist das Dashboard unter `https://bot.windsmp.de` erreichbar!
 Wenn der Bot laeuft, kannst du in Discord die Setup-Befehle ausfuehren:
 
 ```
-/setup verify     -> Erstellt das Verifizierungs-Panel im aktuellen Kanal
-/setup team       -> Erstellt das Team-Beitritts-Panel
-/setup logs       -> Setzt den Log-Kanal (Kanal als Option angeben)
-/setup roles      -> Setzt die Rollen (Rollen als Optionen angeben)
-/setup dashboard  -> Zeigt den Dashboard-Link
+/setup-verify     -> Erstellt das Verifizierungs-Panel im aktuellen Kanal
+/setup-team       -> Erstellt das Team-Beitritts-Panel
+/setup-logs       -> Setzt den Log-Kanal (Kanal als Option angeben)
+/setup-roles      -> Setzt die Rollen (Rollen als Optionen angeben)
+/setup-dashboard  -> Zeigt den Dashboard-Link
+/setup-config     -> Einstellungen anzeigen/aendern
+/setuppatterns    -> Minecraft-Chat-Patterns anzeigen oder aendern
 ```
 
 Beispiel:
 ```
-/setup logs #bot-logs
-/setup roles @Verified @Team @Join @Admin
+/setup-logs #bot-logs
+/setup-roles @Verified @Team @Join @Admin
+/setuppatterns
+/setuppatterns pattern:COMMAND regex:^Command:\s*/(\w+)(?:\s+(.*))?$
 ```
 
 ---
@@ -489,37 +496,34 @@ Wenn du Aenderungen am Code vornimmst:
 
 ```bash
 # Auf dem VPS:
-cd /home/windsmp-teambot
+cd /home/DicksTeamBot
 git pull origin main
 npm install
 cd dashboard && npm install && npm run build && cd ..
-pm2 restart windsmp-teambot
+pm2 restart dicksteambot
 ```
 
 Oder als Einzeiler:
 ```bash
-cd /home/windsmp-teambot && git pull origin main && npm install && cd dashboard && npm install && npm run build && cd .. && pm2 restart windsmp-teambot
+cd /home/DicksTeamBot && git pull origin main && npm install && cd dashboard && npm install && npm run build && cd .. && pm2 restart dicksteambot
 ```
 
 ### Wenn du die .env aenderst
 
 ```bash
-cd /home/windsmp-teambot
+cd /home/DicksTeamBot
 nano .env
 # Aenderungen vornehmen
-pm2 restart windsmp-teambot
+pm2 restart dicksteambot
 ```
 
 ### Wenn du die Minecraft-Session erneuern musst
 
 1. Lokal Bot einmal starten und Microsoft-Login durchfuehren
-2. `mineflayer/` Ordner erneut auf den VPS kopieren:
-```bash
-scp -r "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots\mineflayer" root@DEINE_VPS_IP:/home/windsmp-teambot/
-```
+2. Session-Cache-Ordner auf den VPS kopieren
 3. Bot auf VPS neu starten:
 ```bash
-pm2 restart windsmp-teambot
+pm2 restart dicksteambot
 ```
 
 ---
@@ -527,15 +531,15 @@ pm2 restart windsmp-teambot
 ## Nuetzliche PM2-Befehle
 
 ```bash
-pm2 status                      # Status aller Prozesse
-pm2 logs windsmp-teambot        # Live-Logs anzeigen
-pm2 logs windsmp-teambot --lines 100  # Letzte 100 Zeilen
-pm2 restart windsmp-teambot     # Bot neu starten
-pm2 stop windsmp-teambot        # Bot stoppen
-pm2 delete windsmp-teambot      # Bot aus PM2 entfernen
-pm2 monit                       # Live-Monitoring (CPU, RAM)
-pm2 save                        # Aktuelle Prozesse speichern
-pm2 startup                     # Autostart einrichten
+pm2 status                          # Status aller Prozesse
+pm2 logs dicksteambot               # Live-Logs anzeigen
+pm2 logs dicksteambot --lines 100   # Letzte 100 Zeilen
+pm2 restart dicksteambot            # Bot neu starten
+pm2 stop dicksteambot               # Bot stoppen
+pm2 delete dicksteambot             # Bot aus PM2 entfernen
+pm2 monit                           # Live-Monitoring (CPU, RAM)
+pm2 save                            # Aktuelle Prozesse speichern
+pm2 startup                         # Autostart einrichten
 ```
 
 ---
@@ -550,6 +554,7 @@ pm2 startup                     # Autostart einrichten
 | `/setup-logs` | Log-Kanal setzen | Administrator |
 | `/setup-roles` | Rollen setzen | Administrator |
 | `/setup-config` | Einstellungen anzeigen/aendern | Administrator |
+| `/setuppatterns` | Minecraft-Chat-Patterns anzeigen/aendern | Administrator |
 | `/verify-user` | Verifizierung erzwingen/entfernen | Administrator |
 | `/team-invite` | Team-Einladung im Spiel senden | Administrator |
 | `/team-remove` | Spieler aus Team entfernen | Administrator |
@@ -568,7 +573,7 @@ pm2 startup                     # Autostart einrichten
 2. Spieler gibt seinen Minecraft-Namen ein
 3. Bot generiert einen 6-stelligen Code (gueltig 5 Minuten)
 4. Spieler verbindet sich mit dem Minecraft-Server
-5. Spieler sendet: `/msg WindBot <CODE>`
+5. Spieler sendet: `/msg LudwigHolstein <CODE>`
 6. Bridge erkennt den Code und verifiziert das Konto
 7. Discord-Nickname wird aktualisiert
 8. Verified-Rolle wird vergeben
@@ -601,11 +606,12 @@ Standard-Zugangsdaten (in `.env` konfigurierbar):
 
 | Seite | Beschreibung |
 |-------|-------------|
-| Uebersicht | Bot-Status, Spieler-Statistiken, letzte Logs |
+| Uebersicht | Bot-Status, Spieler-Statistiken, Online-Spieler, letzte Logs |
 | Spieler | Alle verifizierten Spieler mit Suche und Sortierung |
-| Bewerbungen | Team-Bewerbungen annehmen/ablehnen |
-| Live Chat | Minecraft-Chat in Echtzeit mit Kategorie-Filtern |
+| Team | Join-Anfragen annehmen/ablehnen, Team-Mitglieder |
+| Live Chat | Minecraft-Chat in Echtzeit + Nachricht senden (Passwort) |
 | Logs | System-Logs mit Filter und Export |
+| Console | Live-Serverlogs, Service-Steuerung (Start/Stop/Reconnect) |
 | Einstellungen | Regex, Rollen, Farben, Timeouts bearbeiten |
 
 ---
@@ -630,6 +636,15 @@ Alle Einstellungen koennen ueber das Dashboard unter "Einstellungen" geaendert w
 - Verifizierungs-Einstellungen
 - Timeouts und Cooldowns
 
+### Konfiguration ueber Discord
+
+Patterns koennen direkt in Discord geaendert werden:
+```
+/setuppatterns                                    # Alle anzeigen
+/setuppatterns pattern:COMMAND regex:NEUER_REGEX  # Einzelnes Pattern aendern
+/setuppatterns zuruecksetzen:Ja                   # Alle auf Standard
+```
+
 ---
 
 ## Fehlerbehebung
@@ -644,7 +659,7 @@ Alle Einstellungen koennen ueber das Dashboard unter "Einstellungen" geaendert w
 
 - Pruefe, ob der Bot-Name im Minecraft korrekt ist (`MINECRAFT_USERNAME`)
 - Pruefe, ob der Code noch gueltig ist (5 Minuten)
-- Pruefe die Logs auf Fehler: `pm2 logs windsmp-teambot`
+- Pruefe die Logs auf Fehler: `pm2 logs dicksteambot`
 
 ### Dashboard zeigt keine Live-Daten
 
@@ -657,7 +672,7 @@ Alle Einstellungen koennen ueber das Dashboard unter "Einstellungen" geaendert w
 - Pruefe, ob der Minecraft-Server online ist
 - Pruefe, ob `MINECRAFT_HOST` und `MINECRAFT_PORT` korrekt sind
 - Pruefe, ob der Port offen ist (Firewall)
-- Bei Microsoft-Auth: Pruefe ob `mineflayer/user.json` existiert
+- Bei Microsoft-Auth: Pruefe ob der Session-Cache existiert
 
 ### Bot verbindet sich nicht mit Discord
 
@@ -670,10 +685,10 @@ Alle Einstellungen koennen ueber das Dashboard unter "Einstellungen" geaendert w
 ## Projektstruktur
 
 ```
-windsmp-teambot/
+DicksTeamBot/
 ├── discord/              # Discord Bot (Commands, Events, Panels, Services)
 │   ├── bot.js            # Bot-Client und Command-Loader
-│   ├── commands/         # 15 Slash-Befehle
+│   ├── commands/         # 16 Slash-Befehle
 │   ├── components/       # Buttons und Modals
 │   ├── events/           # Discord-Events (ready, interactionCreate)
 │   ├── helpers.js        # Embeds, Rollen, Log-Funktionen
@@ -681,17 +696,17 @@ windsmp-teambot/
 │   ├── teamService.js    # Team-Beitritt-Logik
 │   └── verifyService.js  # Verifizierungs-Logik
 ├── minecraft/            # Minecraft Bridge
-│   ├── bridge.js         # Mineflayer, Chat-Parsing, Regex-Erkennung
+│   ├── bridge.js         # Mineflayer, Chat-Parsing, Regex-Erkennung, Heuristik
 │   └── index.js          # Module-Export
 ├── server/               # Backend
-│   ├── index.js          # Hauptserver (Express + Socket.IO)
+│   ├── index.js          # Hauptserver (Express + Socket.IO + Discord + MC)
 │   ├── config.js         # Konfigurationssystem
 │   ├── middleware/        # Auth, Rate-Limit
-│   ├── routes/           # API-Routen (auth, stats, players, etc.)
+│   ├── routes/           # API-Routen (auth, stats, players, chat, services, etc.)
 │   └── socket/           # Socket.IO Handler
 ├── dashboard/            # Frontend (React + Vite + Tailwind)
 │   ├── src/
-│   │   ├── pages/        # 7 Seiten (Login, Uebersicht, Spieler, etc.)
+│   │   ├── pages/        # 8 Seiten (Login, Uebersicht, Spieler, Team, Chat, Logs, Console, Einstellungen)
 │   │   ├── components/   # Layout, StatCard
 │   │   ├── context/      # AuthContext, SocketContext
 │   │   └── lib/          # API-Helfer
@@ -700,8 +715,8 @@ windsmp-teambot/
 │   ├── index.js          # DB-Zugriffsschicht
 │   └── migrations/       # Schema
 ├── shared/               # Gemeinsame Module
-│   ├── types.js          # Typen, Konstanten, Defaults
-│   ├── logger.js         # Winston-Logger
+│   ├── types.js          # Typen, Konstanten, Defaults (inkl. Patterns)
+│   ├── logger.js         # Winston-Logger (inkl. Dashboard-Transport)
 │   ├── events.js         # Event-Bus
 │   ├── utils.js          # Hilfsfunktionen
 │   └── validation.js     # Input-Validierung
