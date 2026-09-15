@@ -632,14 +632,25 @@ export class MinecraftBridge {
    */
   _extractPaymentData(text, patterns) {
     const configuredRecipient = configService.get('payment', {}).recipient || configService.env.minecraftUsername || 'DicksTeamBank';
-    const parseAmount = (value) => Number.parseInt(String(value).replace(/[^\d]/g, ''), 10);
-    let match = text.match(/you\s+received\s+\$?([\d.,]+)\s+from\s+([A-Za-z0-9_]{3,16})/i);
+    // Betraege wie 50, 50.000, $50K oder $2M verstehen (K = Tausend, M = Million).
+    const parseAmount = (value) => {
+      const str = String(value).trim();
+      const suffix = str.slice(-1).toLowerCase();
+      if (suffix === 'k' || suffix === 'm') {
+        const num = Number.parseFloat(str.slice(0, -1).replace(/\./g, '').replace(',', '.'));
+        if (!Number.isFinite(num)) return NaN;
+        return Math.round(num * (suffix === 'k' ? 1000 : 1000000));
+      }
+      return Number.parseInt(str.replace(/[^\d]/g, ''), 10);
+    };
+    // Hinweis: Betragsmuster enthalten optional K/M-Suffix (z.B. "$50K").
+    let match = text.match(/you\s+received\s+\$?([\d.,]+\s*[KkMm]?)\s+from\s+([A-Za-z0-9_]{3,16})/i);
     if (match) return { amount: parseAmount(match[1]), sender: match[2], recipient: configuredRecipient };
 
-    match = text.match(/([A-Za-z0-9_]{3,16})\s+(?:paid|sent|transferred)\s+\$?([\d.,]+)(?:\s+coins?)?\s+to\s+([A-Za-z0-9_]{3,16})/i);
+    match = text.match(/([A-Za-z0-9_]{3,16})\s+(?:paid|sent|transferred)\s+\$?([\d.,]+\s*[KkMm]?)(?:\s+coins?)?\s+to\s+([A-Za-z0-9_]{3,16})/i);
     if (match) return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
 
-    match = text.match(/([A-Za-z0-9_]{3,16})\s+hat\s+\$?([\d.,]+)(?:\s+coins?)?\s+(?:an\s+)?([A-Za-z0-9_]{3,16})\s+(?:bezahlt|ueberwiesen|überwiesen)/i);
+    match = text.match(/([A-Za-z0-9_]{3,16})\s+hat\s+\$?([\d.,]+\s*[KkMm]?)(?:\s+coins?)?\s+(?:an\s+)?([A-Za-z0-9_]{3,16})\s+(?:bezahlt|ueberwiesen|überwiesen)/i);
     if (match) return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
 
     // Eigene Serverausgabe kann über PAYMENT konfiguriert werden. Das Format
@@ -1196,8 +1207,23 @@ export class MinecraftBridge {
           requiredRecipient: result.requiredRecipient,
         });
       }
+    } else {
+      // Alle anderen Ablehnungen (UNKNOWN_PLAYER, NOT_WAITING,
+      // NO_ACTIVE_PAYMENT, WRONG_IGN) landen im Dashboard-Log, damit ein
+      // "er macht nichts" sofort erklaerbar ist (keine DM = kein Spam).
+      const reasonMap = {
+        UNKNOWN_PLAYER: 'Unbekannter Spieler (nicht verlinkt)',
+        NOT_WAITING: 'Keine offene Zahlung (Status passt nicht)',
+        NO_ACTIVE_PAYMENT: 'Kein aktives Payment gefunden',
+        WRONG_IGN: 'IGN passt nicht zum Payment',
+      };
+      const entry = db.addLog({
+        category: LogCategory.PAYMENT,
+        title: 'Zahlung ignoriert',
+        description: `**${senderIgn}** -> **${recipient}** ($${amount}): ${reasonMap[result.error] || result.error}. Nachricht: \`${chatMessage}\``,
+      });
+      eventBus.emitToDashboard('logUpdate', entry);
     }
-    // ANDERE Fehler (UNKNOWN_PLAYER, NOT_WAITING, NO_ACTIVE_PAYMENT) werden ignoriert
   }
 
   /**
