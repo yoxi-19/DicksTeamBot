@@ -426,7 +426,11 @@ export class MinecraftBridge {
 
     // IMMER zuerst auf Verifizierungscode pruefen (egal welches Format)
     // Code ist nur 5 Minuten gueltig und der Absender-IGN wird geprueft.
-    const codeMatch = text.match(/\b\d{6}\b/);
+    // Laenge kommt aus den Settings (Standard 6), damit laengere Codes
+    // aus dem Dashboard auch erkannt werden.
+    const verifySettings = configService.get('verify', {});
+    const verifyCodeLength = verifySettings.codeLength || 6;
+    const codeMatch = text.match(new RegExp(`\\b\\d{${verifyCodeLength}}\\b`));
     if (codeMatch && this.discordClient) {
       const senderName = this._extractSenderFromMessage(text, patterns);
       if (senderName) {
@@ -848,7 +852,8 @@ export class MinecraftBridge {
    * @param {string|null} senderIgn
    */
   async _checkVerificationCode(text, senderIgn) {
-    const codeMatch = text.match(/\b\d{6}\b/);
+    const verifyCodeLength = configService.get('verify', {}).codeLength || 6;
+    const codeMatch = text.match(new RegExp(`\\b\\d{${verifyCodeLength}}\\b`));
     if (!codeMatch) return;
 
     const code = codeMatch[0];
