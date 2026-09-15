@@ -35,6 +35,19 @@ export class MinecraftBridge {
     // als Chat-Event UND als Whisper-Event ankommt.
     this.processedCodes = new Map();
 
+    // Sende-Queue gegen chat_validation_failed-Kicks: Nachrichten gehen mit
+    // Abstand raus, bei Disconnect geht nichts verloren, nach Spawn wird
+    // automatisch nachgesendet.
+    this.sendQueue = [];
+    this.sendQueueTimer = null;
+    this.lastSendAt = 0;
+    this.MIN_SEND_INTERVAL_MS = 1500;
+    this.MAX_QUEUE_SIZE = 50;
+
+    // Unbestaetigte Team-Einladungen: ignLower -> { discordId, sentAt, acked, resends }
+    this.MAX_INVITE_RESENDS = 3;
+    this.INVITE_RESEND_WINDOW_MS = 5 * 60 * 1000;
+
     // Listener fuer Event-Bus Aktionen
     this._setupBusListeners();
   }
@@ -61,17 +74,19 @@ export class MinecraftBridge {
         this.pendingTeamInvites.set(String(ign).toLowerCase(), {
           discordId: discordId || null,
           sentAt: Date.now(),
+          acked: false,
+          resends: 0,
         });
       }
       const sent = this.sendCommand(`/team invite ${ign}`);
       if (!sent) {
-        // Bot offline: Invite ging NICHT raus. Ausstehende Erfolgsmeldung
-        // unterdruecken und dem User ehrlich sagen, was los ist.
-        logger.error(`[Minecraft] Team-Einladung fuer ${ign} NICHT gesendet (Bot offline).`);
+        // Bot offline: Invite ging NICHT raus (liegt aber in der Queue und
+        // wird nach dem Spawn automatisch nachgesendet). User ehrlich informieren.
+        logger.error(`[Minecraft] Team-Einladung fuer ${ign} NICHT gesendet (Bot offline, eingereiht).`);
         this._notifyTeamInviteNotSent(ign, discordId);
         return;
       }
-      // Erfolgreich gesendet -> im Dashboard loggen (kein Channel-Spam,
+      // Erfolgreich angenommen (Queue) -> im Dashboard loggen (kein Channel-Spam,
       // die Zahlung bestaetigt-Meldung steht schon im Kanal).
       const entry = db.addLog({
         category: LogCategory.TEAM,
@@ -247,21 +262,60 @@ export class MinecraftBridge {
   }
 
   /**
-   * Sendet eine normale Chat-Nachricht.
+   * Sendet eine normale Chat-Nachricht (ueber Queue mit Sendeabstand).
+   * Bei Disconnect wird eingereiht statt verworfen – nach dem Spawn wird
+   * automatisch nachgesendet. Rueckgabe false nur wenn offline angenommen.
    * @param {string} message
+   * @returns {boolean} true wenn online angenommen (gesendet oder eingereiht)
    */
   sendMessage(message) {
     if (!this.bot || !this.isConnected) {
-      logger.warn(`[Minecraft] Kann Nachricht nicht senden (nicht verbunden): ${message}`);
+      if (this.sendQueue.length >= this.MAX_QUEUE_SIZE) {
+        this.sendQueue.shift();
+        logger.warn('[Minecraft] Sende-Queue voll – aelteste Nachricht verworfen.');
+      }
+      this.sendQueue.push(message);
+      logger.info(`[Minecraft] Offline eingereiht (${this.sendQueue.length}): ${message}`);
       return false;
     }
-    try {
-      this.bot.chat(message);
-      return true;
-    } catch (err) {
-      logger.error(`[Minecraft] Fehler beim Senden: ${err.message}`);
-      return false;
+    if (this.sendQueue.length >= this.MAX_QUEUE_SIZE) {
+      this.sendQueue.shift();
+      logger.warn('[Minecraft] Sende-Queue voll – aelteste Nachricht verworfen.');
     }
+    this.sendQueue.push(message);
+    this._pumpSendQueue();
+    return true;
+  }
+
+  /**
+   * Arbeitet die Sende-Queue mit Mindestabstand ab.
+   */
+  _pumpSendQueue() {
+    if (this.sendQueueTimer) return;
+    const tick = () => {
+      this.sendQueueTimer = null;
+      if (!this.bot || !this.isConnected || this.sendQueue.length === 0) return;
+      const wait = this.MIN_SEND_INTERVAL_MS - (Date.now() - this.lastSendAt);
+      if (wait > 0) {
+        this.sendQueueTimer = setTimeout(tick, wait);
+        return;
+      }
+      const message = this.sendQueue.shift();
+      try {
+        this.bot.chat(message);
+        this.lastSendAt = Date.now();
+        logger.debug(`[Minecraft] Gesendet (${this.sendQueue.length} wartend): ${message}`);
+      } catch (err) {
+        logger.error(`[Minecraft] Fehler beim Senden: ${err.message}`);
+        // Nachricht behalten – nach Reconnect geht es weiter.
+        this.sendQueue.unshift(message);
+        return;
+      }
+      if (this.sendQueue.length > 0) {
+        this.sendQueueTimer = setTimeout(tick, this.MIN_SEND_INTERVAL_MS);
+      }
+    };
+    tick();
   }
 
   /**
@@ -320,6 +374,9 @@ export class MinecraftBridge {
 
     bot.on('spawn', () => {
       logger.info('[Minecraft] Bot in der Welt gespawnt.');
+      // Queue abarbeiten + unbestaetigte Invites erneut senden (Kick-Umgehung).
+      this._pumpSendQueue();
+      this._resendUnackedInvites();
       // Online-Status mit der echten Spielerliste abgleichen (loest
       // veraltete is_online-Werte, z.B. nach verpassten Join/Leave-Events).
       const reconcile = () => {
@@ -476,10 +533,15 @@ export class MinecraftBridge {
         this._handlePlayerLeave(playerName);
       }
     }
-    // 5. Team-Einladung gesendet
+    // 5. Team-Einladung gesendet (Server-Bestaetigung -> kein Resend noetig)
     else if (patterns.TEAM_INVITED && patterns.TEAM_INVITED.test(text)) {
       handledCategory = MessageCategory.SYSTEM;
       logger.info(`[Minecraft] Team-Einladung erkannt: ${text}`);
+      const invitedMatch = text.match(/invited\s+([A-Za-z0-9_]{3,16})/i);
+      if (invitedMatch && this.pendingTeamInvites) {
+        const tracked = this.pendingTeamInvites.get(invitedMatch[1].toLowerCase());
+        if (tracked) tracked.acked = true;
+      }
     }
     // 6. Team-Beitritt
     else if (patterns.TEAM_JOIN && patterns.TEAM_JOIN.test(text)) {
@@ -695,6 +757,13 @@ export class MinecraftBridge {
       return false;
     }
 
+    // Diese Antwort bestaetigt die Einladung (Erfolg ODER Fehler) –
+    // kein Resend nach Reconnect mehr noetig.
+    if (ign && this.pendingTeamInvites) {
+      const tracked = this.pendingTeamInvites.get(String(ign).toLowerCase());
+      if (tracked) tracked.acked = true;
+    }
+
     // Alte Eintraege aufraeumen
     if (this.pendingTeamInvites) {
       for (const [key, entry] of this.pendingTeamInvites) {
@@ -712,47 +781,102 @@ export class MinecraftBridge {
     eventBus.emitToDashboard('logUpdate', errorEntry);
 
     if (discordId && this.discordClient) {
-      // Ausstehende Erfolgsmeldung unterdruecken: Bei einem Invite-Fehler
-      // kommt NUR diese EINE finale Nachricht (kein "Zahlung erkannt" davor).
-      const pending = consumePendingPaymentConfirm(discordId);
-      const amountLine = pending?.payment?.amount
-        ? `Deine Zahlung (**$${pending.payment.amount.toLocaleString('de-DE')}**) wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`
-        : `Deine Zahlung wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`;
-
-      // Refund-Timer (10 Min): Tut der Spieler nichts, wird die bestaetigte
-      // Zahlung automatisch per /pay zurueckgezahlt. Retry/Join stornieren ihn.
-      const confirmedPayment = db.findLatestConfirmedPayment(discordId);
-      if (confirmedPayment) {
-        scheduleRefundAfterInviteError(this.discordClient, discordId, confirmedPayment);
-      }
-      try {
-        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
-        const user = await this.discordClient.users.fetch(discordId);
-        if (user) {
-          const dm = await user.createDM();
-          const embed = new EmbedBuilder()
-            .setColor(0xED4245)
-            .setTitle('Team-Einladung fehlgeschlagen')
-            .setDescription(
-              amountLine +
-              `**Fehlercode:** \`${errorCode}\`\n\n` +
-              `**Server-Antwort:**\n\`\`\`\n${text}\n\`\`\`\n` +
-              `${hint}`,
-            )
-            .setTimestamp();
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId('btn_team_invite_retry')
-              .setLabel('Nochmal')
-              .setStyle(ButtonStyle.Primary),
-          );
-          await dm.send({ embeds: [embed], components: [row] });
-        }
-      } catch (err) {
-        logger.warn(`[Minecraft] Konnte Team-Fehler-DM nicht senden: ${err.message}`);
-      }
+      await this._sendTeamInviteError(discordId, ign, errorCode, text, hint);
     }
     return true;
+  }
+
+  /**
+   * Sendet die finale Fehler-DM nach fehlgeschlagener Einladung.
+   * Unterdrueckt die ausstehende Erfolgsmeldung (EINE finale Nachricht)
+   * und startet den Refund-Timer.
+   */
+  async _sendTeamInviteError(discordId, ign, errorCode, serverText, hint) {
+    // Ausstehende Erfolgsmeldung unterdruecken: Bei einem Invite-Fehler
+    // kommt NUR diese EINE finale Nachricht (kein "Zahlung erkannt" davor).
+    const pending = consumePendingPaymentConfirm(discordId);
+    const amountLine = pending?.payment?.amount
+      ? `Deine Zahlung (**$${pending.payment.amount.toLocaleString('de-DE')}**) wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`
+      : `Deine Zahlung wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`;
+
+    // Refund-Timer (10 Min): Tut der Spieler nichts, wird die bestaetigte
+    // Zahlung automatisch per /pay zurueckgezahlt. Retry/Join stornieren ihn.
+    const confirmedPayment = db.findLatestConfirmedPayment(discordId);
+    if (confirmedPayment) {
+      scheduleRefundAfterInviteError(this.discordClient, discordId, confirmedPayment);
+    }
+    try {
+      const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
+      const user = await this.discordClient.users.fetch(discordId);
+      if (user) {
+        const dm = await user.createDM();
+        const embed = new EmbedBuilder()
+          .setColor(0xED4245)
+          .setTitle('Team-Einladung fehlgeschlagen')
+          .setDescription(
+            amountLine +
+            `**Fehlercode:** \`${errorCode}\`\n\n` +
+            `**Server-Antwort:**\n\`\`\`\n${serverText}\n\`\`\`\n` +
+            `${hint}`,
+          )
+          .setTimestamp();
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('btn_team_invite_retry')
+            .setLabel('Nochmal')
+            .setStyle(ButtonStyle.Primary),
+        );
+        await dm.send({ embeds: [embed], components: [row] });
+      }
+    } catch (err) {
+      logger.warn(`[Minecraft] Konnte Team-Fehler-DM nicht senden: ${err.message}`);
+    }
+  }
+
+  /**
+   * Sendet unbestaetigte Einladungen nach (Re-)Spawn erneut.
+   * Umgeht Kicks beim Senden (chat_validation_failed): Was wegen dem Kick
+   * nie beantwortet wurde, geht nach dem Reconnect automatisch nochmal raus.
+   * Nach MAX_INVITE_RESENDS Versuchen ohne Antwort: Aufgabe + Fehler-DM.
+   */
+  _resendUnackedInvites() {
+    if (!this.pendingTeamInvites) return;
+    const now = Date.now();
+    for (const [key, entry] of this.pendingTeamInvites) {
+      if (entry.acked) continue;
+      if (now - entry.sentAt > this.INVITE_RESEND_WINDOW_MS) continue;
+      if (!entry.discordId) continue;
+      if (entry.resends >= this.MAX_INVITE_RESENDS) {
+        entry.acked = true;
+        logger.error(`[Minecraft] Invite fuer ${key} nach ${entry.resends} Versuchen aufgegeben.`);
+        const errorEntry = db.addLog({
+          category: LogCategory.TEAM,
+          title: 'Team-Einladung fehlgeschlagen (TEAM_SEND_FAILED)',
+          description: `Spieler **${key}**: keine Server-Antwort nach ${entry.resends} Versuchen (Kick beim Senden?).`,
+        });
+        eventBus.emitToDashboard('logUpdate', errorEntry);
+        if (this.discordClient) {
+          this._sendTeamInviteError(
+            entry.discordId,
+            key,
+            'TEAM_SEND_FAILED',
+            'Keine Server-Antwort (Verbindung beim Senden verloren).',
+            'Der Bot wurde beim Senden getrennt. Druecke Nochmal fuer einen neuen Versuch – passiert 10 Minuten nichts, kommt das Geld automatisch zurueck.',
+          );
+        }
+        continue;
+      }
+      entry.resends += 1;
+      entry.sentAt = Date.now();
+      logger.warn(`[Minecraft] Sende unbestaetigte Einladung erneut (Versuch ${entry.resends}): ${key}`);
+      this.sendCommand(`/team invite ${key}`);
+      const logEntry = db.addLog({
+        category: LogCategory.TEAM,
+        title: 'Team-Einladung erneut gesendet',
+        description: `Einladung fuer **${key}** nach Reconnect erneut gesendet (Versuch ${entry.resends}).`,
+      });
+      eventBus.emitToDashboard('logUpdate', logEntry);
+    }
   }
 
     /**
