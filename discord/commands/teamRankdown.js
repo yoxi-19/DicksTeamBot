@@ -40,7 +40,7 @@ export default {
     const cleanIgn = ignOption ? sanitizeIgn(ignOption) : null;
     if (ignOption && !cleanIgn) {
       await interaction.reply({
-        embeds: [errorEmbed('Ungueltiger Name', 'Der Minecraft-Name ist ungueltig.')],
+        embeds: [errorEmbed('Ungültiger Name', 'Der Minecraft-Name ist ungültig.')],
         ephemeral: true,
       });
       return;

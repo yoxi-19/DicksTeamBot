@@ -1,6 +1,6 @@
 // Variable: gekapselter Winston-Logger.
 // Benutzersichtbare Meldungen werden auf Deutsch ausgegeben,
-// interne Entwickler-Logs duerfen Englisch sein.
+// interne Entwickler-Logs dürfen Englisch sein.
 
 import winston from 'winston';
 import path from 'node:path';

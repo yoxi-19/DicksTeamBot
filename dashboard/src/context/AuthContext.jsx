@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem('windsmp_token'));
   const [loading, setLoading] = useState(true);
 
-  // Token bei Start pruefen
+  // Token bei Start prüfen
   useEffect(() => {
     if (token) {
       apiFetch('/api/auth/verify', { token })

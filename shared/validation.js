@@ -2,7 +2,7 @@
 // Alle Eingaben aus Discord, Dashboard und Minecraft werden hier geprueft.
 
 /**
- * Prueft, ob ein Wert eine nicht-leere Zeichenkette ist.
+ * Prüft, ob ein Wert eine nicht-leere Zeichenkette ist.
  * @param {unknown} value
  * @returns {boolean}
  */
@@ -11,7 +11,7 @@ export function isNonEmptyString(value) {
 }
 
 /**
- * Prueft, ob ein Wert eine gueltige Discord-Snowflake-ID ist (17-20 Ziffern).
+ * Prüft, ob ein Wert eine gültige Discord-Snowflake-ID ist (17-20 Ziffern).
  * @param {unknown} value
  * @returns {boolean}
  */
@@ -32,7 +32,7 @@ export function sanitizeText(text, maxLength = 2000) {
 }
 
 /**
- * Sanitisiert untrusted HTML-Eingaben fuer das Dashboard (einfach, keine HTML-Whitelist noetig,
+ * Sanitisiert untrusted HTML-Eingaben für das Dashboard (einfach, keine HTML-Whitelist noetig,
  * da React per Default escaped; hier dennoch grundlegende Zeichen entfernen).
  * @param {string} text
  * @returns {string}
@@ -48,7 +48,7 @@ export function sanitizeHtmlText(text) {
 }
 
 /**
- * Prueft, ob eine Zeichenkette ein gueltiger Regex-Flags-String ist.
+ * Prüft, ob eine Zeichenkette ein gültiger Regex-Flags-String ist.
  * @param {unknown} value
  * @returns {boolean}
  */
@@ -57,7 +57,7 @@ export function isValidRegexFlags(value) {
 }
 
 /**
- * Prueft, ob ein Wert eine positive Ganzzahl im erwarteten Bereich ist.
+ * Prüft, ob ein Wert eine positive Ganzzahl im erwarteten Bereich ist.
  * @param {unknown} value
  * @param {number} min
  * @param {number} max
@@ -70,7 +70,7 @@ export function isIntegerInRange(value, min, max) {
 
 /**
  * Validiert ein Objekt gegen eine erwartete Schluesselliste.
- * Gibt eine Liste der unbekannten/ungueltigen Schluessel zurueck.
+ * Gibt eine Liste der unbekannten/ungültigen Schlüssel zurück.
  * @param {Record<string, unknown>} input
  * @param {string[]} allowed
  * @returns {string[]}
@@ -82,7 +82,7 @@ export function rejectUnknownKeys(input, allowed) {
   const errors = [];
   for (const key of Object.keys(input)) {
     if (!allowed.includes(key)) {
-      errors.push(`Unbekannter Schluessel: ${key}`);
+      errors.push(`Unbekannter Schlüssel: ${key}`);
     }
   }
   return errors;

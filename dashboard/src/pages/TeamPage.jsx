@@ -139,7 +139,7 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
-      {/* Teams-Uebersicht */}
+      {/* Teams-Übersicht */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Teams</h2>

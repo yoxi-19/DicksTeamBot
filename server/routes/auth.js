@@ -29,17 +29,17 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 10, message: 'Zu viele L
       cachedPasswordHash = await bcrypt.hash(adminPassword, 10);
     }
 
-    // Pruefe Benutzername
+    // Prüfe Benutzername
     if (username !== adminUser) {
-      logger.warn(`[Auth] Fehlgeschlagener Login-Versuch fuer Benutzer: ${username}`);
-      return res.status(401).json({ error: 'Ungueltige Anmeldedaten.' });
+      logger.warn(`[Auth] Fehlgeschlagener Login-Versuch für Benutzer: ${username}`);
+      return res.status(401).json({ error: 'Ungültige Anmeldedaten.' });
     }
 
-    // Pruefe Passwort (vergleiche Eingabe mit dem gehashten Admin-Passwort)
+    // Prüfe Passwort (vergleiche Eingabe mit dem gehashten Admin-Passwort)
     const passwordMatch = await bcrypt.compare(password, cachedPasswordHash);
     if (!passwordMatch) {
-      logger.warn(`[Auth] Fehlgeschlagener Login-Versuch fuer Benutzer: ${username}`);
-      return res.status(401).json({ error: 'Ungueltige Anmeldedaten.' });
+      logger.warn(`[Auth] Fehlgeschlagener Login-Versuch für Benutzer: ${username}`);
+      return res.status(401).json({ error: 'Ungültige Anmeldedaten.' });
     }
 
     const token = createToken({ username, role: 'admin' });
@@ -55,7 +55,7 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 10, message: 'Zu viele L
   }
 });
 
-// GET /api/auth/verify - Prueft ob Token gueltig ist
+// GET /api/auth/verify - Prüft ob Token gültig ist
 router.get('/verify', authenticateToken, (req, res) => {
   return res.json({ valid: true, user: req.user });
 });

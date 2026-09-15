@@ -1,5 +1,5 @@
 // Variable: Discord MessageCreate-Event.
-// Behandelt DM-Nachrichten fuer Verifizierung und Team-Beitritt.
+// Behandelt DM-Nachrichten für Verifizierung und Team-Beitritt.
 
 import { Events } from 'discord.js';
 import { handleDmMessage } from '../components/dmHandler.js';

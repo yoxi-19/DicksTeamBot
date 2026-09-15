@@ -1,5 +1,5 @@
-// Variable: Button-Interaktions-Router fuer Discord.
-// Einheitlicher Flow: Button klicken -> DM fuer IGN -> Code im MC eingeben -> Verifizierung -> Payment -> Team
+// Variable: Button-Interaktions-Router für Discord.
+// Einheitlicher Flow: Button klicken -> DM für IGN -> Code im MC eingeben -> Verifizierung -> Payment -> Team
 
 import { registerPendingDm } from './dmHandler.js';
 import { buildPaymentConfirmedEmbed, buildPaymentInstructionEmbed, cancelRefund, handlePaymentButton, registerPendingPaymentConfirm, sendPaymentEmbed } from '../paymentService.js';
@@ -42,7 +42,7 @@ export async function handleButtonInteraction(interaction, client) {
 }
 
 /**
- * Prueft ob ein User ein gueltiger Vorgang hat (IGN gesetzt).
+ * Prüft ob ein User ein gültiger Vorgang hat (IGN gesetzt).
  * Korrigiert kaputte DB-Zustaende automatisch.
  */
 function isValidUser(user) {
@@ -50,7 +50,7 @@ function isValidUser(user) {
 }
 
 /**
- * Verify-Button: Der Einstiegspunkt fuer ALLE Nutzer.
+ * Verify-Button: Der Einstiegspunkt für ALLE Nutzer.
  */
 async function handleVerifyButton(interaction, client) {
   const user = db.findUserByDiscord(interaction.user.id);
@@ -83,7 +83,7 @@ async function handleVerifyButton(interaction, client) {
     return;
   }
 
-  // Zahlung ausstehend: Die laufende Anweisung direkt anzeigen, keine weitere DM erzeugen.
+  // Zahlung ausstehend: Die laufende Änweisung direkt anzeigen, keine weitere DM erzeugen.
   if (user && user.status === PlayerStatus.WAITING_PAYMENT && isValidUser(user)) {
     const result = await handlePaymentButton(client, interaction.user.id, user.ign);
     await interaction.reply({
@@ -96,7 +96,7 @@ async function handleVerifyButton(interaction, client) {
   // Alles andere (UNVERIFIED, oder VERIFIED ohne IGN, oder new) -> DM-Flow starten
   if (!bridgeInstance || !bridgeInstance.isConnected) {
     await interaction.reply({
-      embeds: [errorEmbed('Minecraft-Server offline', 'Der Bot ist gerade nicht auf dem Server. Bitte versuche es spaeter erneut.')],
+      embeds: [errorEmbed('Minecraft-Server offline', 'Der Bot ist gerade nicht auf dem Server. Bitte versuche es später erneut.')],
       ephemeral: true,
     });
     return;
@@ -122,7 +122,7 @@ async function handleVerifyButton(interaction, client) {
 }
 
 /**
- * Team-Button: Fuehrt den gleichen Status-Check aus wie Verify-Button.
+ * Team-Button: Führt den gleichen Status-Check aus wie Verify-Button.
  */
 async function handleTeamButton(interaction, client) {
   const user = db.findUserByDiscord(interaction.user.id);
@@ -164,7 +164,7 @@ async function handleTeamButton(interaction, client) {
   // Nicht verifiziert -> DM-Flow starten
   if (!bridgeInstance || !bridgeInstance.isConnected) {
     await interaction.reply({
-      embeds: [errorEmbed('Minecraft-Server offline', 'Der Bot ist gerade nicht auf dem Server. Bitte versuche es spaeter erneut.')],
+      embeds: [errorEmbed('Minecraft-Server offline', 'Der Bot ist gerade nicht auf dem Server. Bitte versuche es später erneut.')],
       ephemeral: true,
     });
     return;
@@ -229,7 +229,7 @@ async function handleTeamInviteRetryButton(interaction, client) {
   eventBus.emit('minecraft:teamInvite', { ign: user.ign, discordId: interaction.user.id });
 
   // Prozess startet neu: alter Refund-Timer wird storniert, ein neuer
-  // startet erst beim naechsten Invite-Fehler wieder.
+  // startet erst beim nächsten Invite-Fehler wieder.
   cancelRefund(interaction.user.id);
 
   // Prozess neu starten ab dem Normalzustand: exakt dasselbe Embed wie ohne
@@ -238,7 +238,7 @@ async function handleTeamInviteRetryButton(interaction, client) {
   const payment = db.findLatestPayment(interaction.user.id);
   if (!payment) {
     await interaction.reply({
-      embeds: [errorEmbed('Fehler', 'Keine Zahlung gefunden. Bitte starte den Vorgang neu ueber den Button im Server.')],
+      embeds: [errorEmbed('Fehler', 'Keine Zahlung gefunden. Bitte starte den Vorgang neu über den Button im Server.')],
     });
     return;
   }
@@ -250,7 +250,7 @@ async function handleTeamInviteRetryButton(interaction, client) {
     {
       alreadyAnnounced: true,
       // Die per Update umgewandelte Nachricht ist ab jetzt der
-      // Normalzustand – spaetere Fehler/Join loeschen genau diese.
+      // Normalzustand – spätere Fehler/Join löschen genau diese.
       channelId: interaction.channelId || null,
       messageId: interaction.message?.id || null,
     },
@@ -264,7 +264,7 @@ async function handleTeamInviteRetryButton(interaction, client) {
 
 /**
  * Payment-Button: startet die Überwachung und ersetzt das geklickte Embed
- * direkt durch die Zahlungsanweisung.
+ * direkt durch die Zahlungsänweisung.
  */
 async function handlePaymentPaidButton(interaction, client) {
   const user = db.findUserByDiscord(interaction.user.id);

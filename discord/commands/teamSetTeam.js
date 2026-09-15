@@ -12,7 +12,7 @@ export default {
     .setDescription('Setzt ein Team-Mitglied direkt auf ein Team (Rang).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addIntegerOption((opt) =>
-      opt.setName('team').setDescription('Ziel-Team (1 = hoechstes)').setRequired(true).setMinValue(1).setMaxValue(10),
+      opt.setName('team').setDescription('Ziel-Team (1 = höchstes)').setRequired(true).setMinValue(1).setMaxValue(10),
     )
     .addUserOption((opt) =>
       opt.setName('nutzer').setDescription('Der Discord-Nutzer').setRequired(false),
@@ -44,7 +44,7 @@ export default {
     const cleanIgn = ignOption ? sanitizeIgn(ignOption) : null;
     if (ignOption && !cleanIgn) {
       await interaction.reply({
-        embeds: [errorEmbed('Ungueltiger Name', 'Der Minecraft-Name ist ungueltig.')],
+        embeds: [errorEmbed('Ungültiger Name', 'Der Minecraft-Name ist ungültig.')],
         ephemeral: true,
       });
       return;
@@ -53,7 +53,7 @@ export default {
     const cfg = getRankConfig();
     if (team < 1 || team > cfg.count) {
       await interaction.reply({
-        embeds: [errorEmbed('Ungueltiges Team', `Es gibt aktuell **${cfg.count}** Teams. Waehle 1 bis ${cfg.count}.`)],
+        embeds: [errorEmbed('Ungültiges Team', `Es gibt aktuell **${cfg.count}** Teams. Waehle 1 bis ${cfg.count}.`)],
         ephemeral: true,
       });
       return;
@@ -68,7 +68,7 @@ export default {
     const oldRank = getUserRank(found.user, cfg);
     if (oldRank === team) {
       await interaction.reply({
-        embeds: [successEmbed('Keine Aenderung', `**${found.user.ign}** ist bereits in Team **${team}**.`)],
+        embeds: [successEmbed('Keine Änderung', `**${found.user.ign}** ist bereits in Team **${team}**.`)],
         ephemeral: true,
       });
       return;

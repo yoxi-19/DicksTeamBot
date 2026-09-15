@@ -1,4 +1,4 @@
-// Variable: Einstellungs-Route - Bot-Konfiguration ueber API verwalten.
+// Variable: Einstellungs-Route - Bot-Konfiguration über API verwalten.
 
 import { Router } from 'express';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
@@ -17,7 +17,7 @@ router.get('/', authenticateToken, (req, res) => {
   }
 });
 
-// GET /api/settings/schema/keys - Alle gueltigen Schluessel
+// GET /api/settings/schema/keys - Alle gültigen Schlüssel
 // Muss vor /:key stehen, damit "schema" nicht als Einstellung behandelt wird.
 router.get('/schema/keys', authenticateToken, (req, res) => {
   return res.json(SETTING_KEYS);

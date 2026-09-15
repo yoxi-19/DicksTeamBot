@@ -13,7 +13,7 @@ import { consumePendingPaymentConfirm, cancelRefund, deleteAnnouncedPaymentMessa
 
 /**
  * Liefert die Rank-Konfiguration (Anzahl Teams + Rollen je Rang).
- * Rang 1 = hoechstes Team, count = Einstiegsrang.
+ * Rang 1 = höchstes Team, count = Einstiegsrang.
  * @returns {{ count: number, roles: Record<string,string>, ownerRoles: Record<string,string>, owners: Record<string,string> }}
  */
 export function getRankConfig() {
@@ -26,7 +26,7 @@ export function getRankConfig() {
 }
 
 /**
- * Rollen-ID fuer einen Rang ('' wenn nicht konfiguriert).
+ * Rollen-ID für einen Rang ('' wenn nicht konfiguriert).
  */
 export function getRankRoleId(rank, cfg = null) {
   const { roles } = cfg || getRankConfig();
@@ -35,7 +35,7 @@ export function getRankRoleId(rank, cfg = null) {
 }
 
 /**
- * Owner-Rollen-ID fuer einen Rang ('' wenn nicht konfiguriert).
+ * Owner-Rollen-ID für einen Rang ('' wenn nicht konfiguriert).
  */
 export function getOwnerRoleId(rank, cfg = null) {
   const { ownerRoles } = cfg || getRankConfig();
@@ -224,7 +224,7 @@ export async function removeOwnerRoles(guild, discordId) {
  * Erkennt Owner automatisch: Owner eines Teams ist das verlinkte
  * Team-Mitglied dieses Rangs, das die Owner-Rolle auf Discord hat.
  * Admins/Mods mit der Rolle (aber ohne Team-Mitgliedschaft) werden ignoriert.
- * Schreibt Aenderungen in die owners-Config (reiner Cache, keine Handarbeit).
+ * Schreibt Änderungen in die owners-Config (reiner Cache, keine Handarbeit).
  * @param {import('discord.js').Guild} guild
  * @param {import('discord.js').Collection<string, import('discord.js').GuildMember>|null} preFetchedMembers - bereits geladene Member (spart API-Calls)
  * @returns {Promise<Array<{ rank: number, ownerId: string|null, changed: boolean }>>}
@@ -270,7 +270,7 @@ export async function detectTeamOwners(guild, preFetchedMembers = null) {
     } else if (eligible.length === 0) {
       next = null;
     }
-    // Bei mehreren: bisherigen behalten (auch wenn ungueltig), Admin klaert per team-setowner
+    // Bei mehreren: bisherigen behalten (auch wenn ungültig), Admin klaert per team-setowner
 
     const nextStr = next || '';
     if ((owners[String(r)] || '') !== nextStr) {
@@ -289,8 +289,8 @@ export async function detectTeamOwners(guild, preFetchedMembers = null) {
 }
 
 /**
- * Loescht alle Owner-Slots eines Users (bei Leave/Unlink/Remove).
- * Entfernt auch die Owner-Rollen. Gibt die geraeumten Raenge zurueck.
+ * Löscht alle Owner-Slots eines Users (bei Leave/Unlink/Remove).
+ * Entfernt auch die Owner-Rollen. Gibt die geraeumten Ränge zurück.
  */
 export async function clearOwnerSlots(client, discordId) {
   const cfg = getRankConfig();
@@ -321,7 +321,7 @@ export async function clearOwnerSlots(client, discordId) {
  * - Erkennt Owner aus Owner-Rollen
  * - TEAM: Team-Rolle + Rang-Rolle + Owner-Rolle geben, Join-Rolle weg
  * - VERIFIED: Verified-Rolle geben, Team-/Rang-/Owner-Rollen weg
- * Ueberfluessige Rollen (z.B. Reste nach DB-Wipe) werden dabei entfernt.
+ * Überflüssige Rollen (z.B. Reste nach DB-Wipe) werden dabei entfernt.
  * @param {import('discord.js').Client} client
  * @returns {Promise<{ ok: boolean, synced: number, errors: number, detectedOwners: number, error?: string }>}
  */
@@ -342,7 +342,7 @@ export async function syncAllMembers(client) {
 
   let detectedOwners = 0;
   try {
-    // Owner muessen verknuepfte Team-Mitglieder sein. Deshalb reicht diese
+    // Owner müssen verknuepfte Team-Mitglieder sein. Deshalb reicht diese
     // kleine Liste und ein langsamer globaler Members-Intent ist nicht noetig.
     const detected = await detectTeamOwners(guild, linkedTeamMembers);
     detectedOwners = detected.filter((d) => d.ownerId).length;
@@ -358,13 +358,13 @@ export async function syncAllMembers(client) {
 
     try {
       if (user.status === PlayerStatus.TEAM) {
-        // Alte oder manuell bearbeitete Datensaetze koennen den Team-Status
+        // Alte oder manuell bearbeitete Datensaetze können den Team-Status
         // ohne Rang enthalten. Den abgeleiteten Einstiegsrang auch speichern,
         // damit Datenbank und Discord-Anzeige nicht auseinanderlaufen.
         const rank = getUserRank(user);
         if (String(user.team || '') !== String(rank)) {
           user = db.upsertUser({ ...user, team: String(rank) });
-          logger.info(`[Team] Fehlenden Rang fuer ${user.ign || user.discord_id} auf Team ${rank} repariert.`);
+          logger.info(`[Team] Fehlenden Rang für ${user.ign || user.discord_id} auf Team ${rank} repariert.`);
         }
         await grantRole(guild, user.discord_id, 'roleTeam');
         await grantRole(guild, user.discord_id, 'roleVerified');
@@ -383,7 +383,7 @@ export async function syncAllMembers(client) {
       }
       synced++;
     } catch (err) {
-      logger.error(`[Discord] Sync-Fehler fuer ${user.discord_id}: ${err.message}`);
+      logger.error(`[Discord] Sync-Fehler für ${user.discord_id}: ${err.message}`);
       errors++;
     }
   }
@@ -410,7 +410,7 @@ export function findRankTarget({ discordId = null, ign = null }) {
  * @param {import('discord.js').Client} client
  * @param {string} discordId
  * @param {number} newRank - bereits validiert (1..count)
- * @param {string} actorTag - wer hat die Aenderung ausgeloest
+ * @param {string} actorTag - wer hat die Änderung ausgeloest
  * @param {object} opts { skipLog?: boolean }
  * @returns {Promise<{ ok: boolean, user?: object, oldRank?: number, newRank?: number, error?: string }>}
  */
@@ -436,7 +436,7 @@ export async function setUserRank(client, discordId, newRank, actorTag = 'System
   if (!opts.skipLog) {
     await sendLogEmbed(client, {
       category: LogCategory.TEAM,
-      title: 'Rang geaendert',
+      title: 'Rang geändert',
       description: `<@${discordId}> (**${user.ign}**) von Team **${oldRank}** auf Team **${newRank}** gesetzt (durch ${actorTag}).`,
       color: 'info',
     });
@@ -458,16 +458,16 @@ export async function setUserRank(client, discordId, newRank, actorTag = 'System
 export async function requestJoin(client, discordId, ign) {
   const cleanIgn = sanitizeIgn(ign);
   if (!cleanIgn) {
-    return { ok: false, error: 'Ungueltiger Minecraft-Name.' };
+    return { ok: false, error: 'Ungültiger Minecraft-Name.' };
   }
 
-  // Nur verifizierte Nutzer duerfen beitreten.
+  // Nur verifizierte Nutzer dürfen beitreten.
   const user = db.findUserByDiscord(discordId);
   if (!user || user.status !== PlayerStatus.VERIFIED) {
     return { ok: false, error: 'Du musst zuerst verifiziert sein, bevor du dem Team beitreten kannst.' };
   }
 
-  // Ign muss mit dem verifizierten IGN uebereinstimmen.
+  // Ign muss mit dem verifizierten IGN übereinstimmen.
   if (user.ign && user.ign.toLowerCase() !== cleanIgn.toLowerCase()) {
     return { ok: false, error: `Der Name stimmt nicht mit deinem verifizierten Namen (${user.ign}) ueberein.` };
   }
@@ -501,7 +501,7 @@ export async function handleTeamJoined(client, ign) {
 
   const user = db.findUserByIgn(cleanIgn);
   if (!user || !user.discord_id) {
-    logger.warn(`[Team] Kein Discord-Konto fuer ${cleanIgn} gefunden.`);
+    logger.warn(`[Team] Kein Discord-Konto für ${cleanIgn} gefunden.`);
     return false;
   }
 
@@ -535,7 +535,7 @@ export async function handleTeamJoined(client, ign) {
 
   // Falls der Join direkt auf eine Zahlung folgte, die ausstehende
   // Erfolgsmeldung unterdruecken bzw. bereits gesendete "Zahlung erkannt"-
-  // Nachricht loeschen und EINE kombinierte Nachricht schicken.
+  // Nachricht löschen und EINE kombinierte Nachricht schicken.
   // Ein geplanter Refund ist damit ebenfalls hinfällig.
   const pending = consumePendingPaymentConfirm(user.discord_id);
   cancelRefund(user.discord_id);

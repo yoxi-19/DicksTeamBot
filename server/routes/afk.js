@@ -35,7 +35,7 @@ router.post('/add', authenticateToken, requireAdmin, (req, res) => {
 
     const cleaned = username.trim();
     if (!/^[A-Za-z0-9_]{3,16}$/.test(cleaned)) {
-      return res.status(400).json({ error: 'Ungueltiger Minecraft-Name (3-16 Zeichen, alphanumerisch).' });
+      return res.status(400).json({ error: 'Ungültiger Minecraft-Name (3-16 Zeichen, alphanumerisch).' });
     }
 
     const accounts = configService.get('afkAccounts', []);

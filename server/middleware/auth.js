@@ -6,7 +6,7 @@ import configService from '../config.js';
 import logger from '../../shared/logger.js';
 
 /**
- * Middleware: Prueft den Authorization-Header auf gueltiges JWT.
+ * Middleware: Prüft den Authorization-Header auf gültiges JWT.
  */
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -30,12 +30,12 @@ export function authenticateToken(req, res, next) {
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token abgelaufen.' });
     }
-    return res.status(403).json({ error: 'Ungueltiger Token.' });
+    return res.status(403).json({ error: 'Ungültiger Token.' });
   }
 }
 
 /**
- * Erstellt ein JWT fuer den Dashboard-Login.
+ * Erstellt ein JWT für den Dashboard-Login.
  * @param {object} payload { username, role }
  * @returns {string}
  */

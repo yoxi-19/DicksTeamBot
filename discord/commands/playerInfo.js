@@ -1,4 +1,4 @@
-// Variable: /player info - Zeigt Informationen ueber einen Spieler.
+// Variable: /player info - Zeigt Informationen über einen Spieler.
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { errorEmbed, successEmbed, buildEmbed } from '../helpers.js';
@@ -9,7 +9,7 @@ import { formatDate } from '../../shared/utils.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('player-info')
-    .setDescription('Zeigt Informationen ueber einen Spieler.')
+    .setDescription('Zeigt Informationen über einen Spieler.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addUserOption((opt) =>
       opt.setName('nutzer').setDescription('Der Discord-Nutzer (optional)'),

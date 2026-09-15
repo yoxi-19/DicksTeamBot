@@ -1,7 +1,7 @@
 // Variable: DM-Interaktions-Handler.
-// Verarbeitet DM-Nachrichten fuer die Verifizierung (IGN-Eingabe).
-// Der DM-Handler ist NUR fuer einen Zweck zustaendig: den IGN entgegennehmen und einen Code generieren.
-// Alle anderen Schritte (Payment, Team) werden ueber Buttons im Server gesteuert.
+// Verarbeitet DM-Nachrichten für die Verifizierung (IGN-Eingabe).
+// Der DM-Handler ist NUR für einen Zweck zustaendig: den IGN entgegennehmen und einen Code generieren.
+// Alle anderen Schritte (Payment, Team) werden über Buttons im Server gesteuert.
 
 import { startVerification } from '../verifyService.js';
 import { buildEmbed, errorEmbed, successEmbed } from '../helpers.js';
@@ -16,7 +16,7 @@ const pendingDms = new Map();
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 Minuten
 
 /**
- * Registriert eine DM-Aktion fuer einen Nutzer.
+ * Registriert eine DM-Aktion für einen Nutzer.
  * @param {string} userId
  * @param {string} action - 'verify'
  * @param {import('discord.js').Guild} guild
@@ -56,8 +56,8 @@ export async function handleDmMessage(message, client) {
 }
 
 /**
- * Verarbeitet die IGN-Antwort fuer die Verifizierung.
- * Prueft den aktuellen Status und leitet zum naechsten Schritt.
+ * Verarbeitet die IGN-Antwort für die Verifizierung.
+ * Prüft den aktuellen Status und leitet zum nächsten Schritt.
  * Korrupte DB-Zustaende (VERIFIED ohne ign) werden automatisch bereinigt.
  *
  * UNVERIFIED / new / korrupt -> Code generieren
@@ -101,10 +101,10 @@ async function handleVerifyDmReply(message, client, guild, userId, ign) {
     return;
   }
 
-  // Korrupter Zustand (VERIFIED/WAITING_PAYMENT aber kein IGN) -> Zuruecksetzen und neu starten
+  // Korrupter Zustand (VERIFIED/WAITING_PAYMENT aber kein IGN) -> Zurücksetzen und neu starten
   if (existingUser && !existingUser.ign) {
     db.unlinkUser(userId);
-    logger.info(`[DM] Korrupter DB-Eintrag fuer ${userId} bereinigt (status=${existingUser.status}, ign=null).`);
+    logger.info(`[DM] Korrupter DB-Eintrag für ${userId} bereinigt (status=${existingUser.status}, ign=null).`);
   }
 
   // NICHT verifiziert -> Code generieren
@@ -121,11 +121,11 @@ async function handleVerifyDmReply(message, client, guild, userId, ign) {
   const embed = buildEmbed({
     title: 'Dein Verifizierungs-Code',
     description:
-      `Oeffne Minecraft, verbinde dich mit dem Server und fuehre diesen Befehl aus:\n\n` +
+      `Öffne Minecraft, verbinde dich mit dem Server und führe diesen Befehl aus:\n\n` +
       '```\n' +
       `/msg ${botName} ${result.code}\n` +
       '```\n' +
-      `Gueltig fuer 5 Minuten.`,
+      `Gültig für 5 Minuten.`,
     color: 'primary',
   });
 

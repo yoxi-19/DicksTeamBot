@@ -1,4 +1,4 @@
-// Variable: Spieler-Route - CRUD fuer Benutzerdaten.
+// Variable: Spieler-Route - CRUD für Benutzerdaten.
 
 import { Router } from 'express';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
@@ -51,7 +51,7 @@ router.get('/ign/:ign', authenticateToken, (req, res) => {
 router.get('/:id', authenticateToken, (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungueltige Spieler-ID.' });
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungültige Spieler-ID.' });
     const user = db.findUserById(id);
     if (!user) return res.status(404).json({ error: 'Spieler nicht gefunden.' });
     return res.json(user);
@@ -74,7 +74,7 @@ router.patch('/:id', authenticateToken, (req, res) => {
     if (req.body.is_online !== undefined) updates.is_online = req.body.is_online ? 1 : 0;
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: 'Keine gueltigen Felder zum Aktualisieren.' });
+      return res.status(400).json({ error: 'Keine gültigen Felder zum Aktualisieren.' });
     }
 
     updates.discord_id = existing.discord_id;
@@ -93,7 +93,7 @@ router.patch('/:id', authenticateToken, (req, res) => {
 router.post('/:id/unlink', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungueltige Spieler-ID.' });
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungültige Spieler-ID.' });
     const existing = db.findUserById(id);
     if (!existing) {
       return res.status(404).json({ error: 'Spieler nicht gefunden.' });

@@ -63,10 +63,10 @@ async function registerCommands(client, bot, attempt = 1) {
       throw new Error('Client-Session nicht bereit (parallele Anmeldung?)');
     }
     if (guildId) {
-      // Guild-spezifisch (schneller, fuer Development)
+      // Guild-spezifisch (schneller, für Development)
       const guild = await client.guilds.fetch(guildId);
       await guild.commands.set(commandsData);
-      logger.info(`[Discord] ${commandsData.length} Befehle fuer Guild ${guild.name} registriert.`);
+      logger.info(`[Discord] ${commandsData.length} Befehle für Guild ${guild.name} registriert.`);
     } else {
       // Global
       await client.application.commands.set(commandsData);

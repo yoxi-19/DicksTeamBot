@@ -1,4 +1,4 @@
-// Variable: /verify user - Erzwingt Verifizierung oder entfernt Verknuepfung fuer einen Nutzer.
+// Variable: /verify user - Erzwingt Verifizierung oder entfernt Verknuepfung für einen Nutzer.
 // Admin-Befehl mit Sub-Commands: force-unlink
 
 import { SlashCommandBuilder, PermissionFlagsBits, User } from 'discord.js';

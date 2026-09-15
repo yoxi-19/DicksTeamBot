@@ -1,12 +1,12 @@
 // Variable: Verifizierungs-Panel Embed und Buttons.
-// Erstellt die interaktive Benutzeroberflaeche fuer /setup verify.
+// Erstellt die interaktive Benutzeroberflaeche für /setup verify.
 
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import configService from '../../server/config.js';
 import { hexToDecimal } from '../../shared/types.js';
 
 /**
- * Erstellt die Embed-Nachricht fuer das Verifizierungs-Panel.
+ * Erstellt die Embed-Nachricht für das Verifizierungs-Panel.
  * @returns {EmbedBuilder}
  */
 export function buildVerifyPanelEmbed() {

@@ -8,12 +8,12 @@ const PATTERN_KEYS = Object.keys(DEFAULT_SETTINGS.patterns);
 export default {
   data: new SlashCommandBuilder()
     .setName('setuppatterns')
-    .setDescription('Minecraft-Chat-Patterns anzeigen, aendern oder zuruecksetzen.')
+    .setDescription('Minecraft-Chat-Patterns anzeigen, ändern oder zuruecksetzen.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((opt) =>
       opt
         .setName('pattern')
-        .setDescription('Welches Pattern aendern?')
+        .setDescription('Welches Pattern ändern?')
         .setRequired(false)
         .addChoices(...PATTERN_KEYS.map((k) => ({ name: k, value: k }))),
     )
@@ -26,7 +26,7 @@ export default {
     .addStringOption((opt) =>
       opt
         .setName('zuruecksetzen')
-        .setDescription('Alle Patterns auf Standard zuruecksetzen?')
+        .setDescription('Alle Patterns auf Standard zurücksetzen?')
         .setRequired(false)
         .addChoices({ name: 'Ja', value: 'ja' }),
     ),
@@ -65,7 +65,7 @@ export default {
       return;
     }
 
-    // Zuruecksetzen
+    // Zurücksetzen
     if (reset === 'ja') {
       const result = configService.update({ patterns: DEFAULT_SETTINGS.patterns });
       if (!result.ok) {
@@ -76,7 +76,7 @@ export default {
         return;
       }
       await interaction.reply({
-        embeds: [successEmbed('Zurueckgesetzt', 'Alle Patterns wurden auf die Standardwerte zurueckgesetzt.')],
+        embeds: [successEmbed('Zurückgesetzt', 'Alle Patterns wurden auf die Standardwerte zurückgesetzt.')],
         ephemeral: true,
       });
       return;
@@ -87,7 +87,7 @@ export default {
       const error = validateRegexSource(regexStr);
       if (error) {
         await interaction.reply({
-          embeds: [errorEmbed('Ungueltiger Regex', error)],
+          embeds: [errorEmbed('Ungültiger Regex', error)],
           ephemeral: true,
         });
         return;

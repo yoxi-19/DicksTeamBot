@@ -1,5 +1,5 @@
 // Variable: /setup config - Zeigt oder aktualisiert eine Einstellung.
-// Erlaubt Admins, Einstellungen direkt ueber Discord zu aendern.
+// Erlaubt Admins, Einstellungen direkt über Discord zu ändern.
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { errorEmbed, successEmbed } from '../helpers.js';
@@ -22,7 +22,7 @@ export default {
         ),
     )
     .addStringOption((opt) =>
-      opt.setName('wert').setDescription('Der neue Wert (JSON-Format fuer komplexe Werte)'),
+      opt.setName('wert').setDescription('Der neue Wert (JSON-Format für komplexe Werte)'),
     ),
 
   async execute(interaction) {
@@ -90,7 +90,7 @@ export default {
     const result = configService.update({ [key]: parsedValue });
     if (!result.ok) {
       await interaction.reply({
-        embeds: [errorEmbed('Ungueltiger Wert', result.errors.join('\n'))],
+        embeds: [errorEmbed('Ungültiger Wert', result.errors.join('\n'))],
         ephemeral: true,
       });
       return;

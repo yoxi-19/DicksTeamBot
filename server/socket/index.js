@@ -1,6 +1,6 @@
 // Variable: Socket.IO-Handler.
 // Verbindet Dashboard-Clients mit Live-Daten via WebSocket.
-// Nur verbundene Clients mit gueltigem Token erhalten Events.
+// Nur verbundene Clients mit gültigem Token erhalten Events.
 
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
@@ -13,7 +13,7 @@ import logger from '../../shared/logger.js';
 
 let io = null;
 
-// In-Memory-Verlauf der Console-Logs (nur fuer die Anzeige, kein Persistenz-
+// In-Memory-Verlauf der Console-Logs (nur für die Anzeige, kein Persistenz-
 // Anspruch – nach einem Neustart beginnt er neu, mit Restart-Marker).
 const consoleHistory = [];
 const CONSOLE_HISTORY_LIMIT = 500;
@@ -65,7 +65,7 @@ export function initSocket(httpServer) {
     pingTimeout: 60000,
   });
 
-  // Auth-Middleware fuer Socket.IO
+  // Auth-Middleware für Socket.IO
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     if (!token) {
@@ -78,7 +78,7 @@ export function initSocket(httpServer) {
       socket.user = decoded;
       next();
     } catch (err) {
-      return next(new Error('Ungueltiger Token.'));
+      return next(new Error('Ungültiger Token.'));
     }
   });
 
@@ -94,7 +94,7 @@ export function initSocket(httpServer) {
       logger.debug(`[Socket.IO] Client getrennt: ${socket.id}`);
     });
 
-    // Anfragen fuer sofortige Updates
+    // Anfragen für sofortige Updates
     socket.on('requestStats', () => {
       try {
         socket.emit('statsUpdate', getDashboardStats());
@@ -132,7 +132,7 @@ export function initSocket(httpServer) {
   // Event-Bus abonnieren und an alle Clients weiterleiten
   eventBus.on('dashboard', ({ event, payload }) => {
     if (io) {
-      // Console-Logs zusätzlich puffern, damit spaeter geoeffnete
+      // Console-Logs zusätzlich puffern, damit später geoeffnete
       // Console-Seiten den Verlauf sehen
       if (event === 'consoleLog' && payload && typeof payload === 'object') {
         bufferConsoleLog(payload);
@@ -220,7 +220,7 @@ function getDashboardStats() {
 }
 
 /**
- * Gibt die Socket.IO-Instanz zurueck.
+ * Gibt die Socket.IO-Instanz zurück.
  * @returns {Server|null}
  */
 export function getIO() {

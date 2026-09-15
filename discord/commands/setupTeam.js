@@ -15,7 +15,7 @@ export default {
   async execute(interaction) {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        embeds: [errorEmbed('Keine Berechtigung', 'Nur Administratoren koennen diesen Befehl ausfuehren.')],
+        embeds: [errorEmbed('Keine Berechtigung', 'Nur Administratoren können diesen Befehl ausführen.')],
         ephemeral: true,
       });
       return;

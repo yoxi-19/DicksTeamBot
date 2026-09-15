@@ -133,7 +133,7 @@ async function main() {
   const discordBot = new DiscordBot();
   const discordStarted = await discordBot.start();
 
-  // Instanzen fuer Services-API registrieren
+  // Instanzen für Services-API registrieren
   setInstances(discordBot, bridgeInstance);
 
   if (discordStarted) {
@@ -153,7 +153,7 @@ async function main() {
   // 8b. AFK-Bots starten
   afkManager.loadFromConfig();
 
-  // 8c. Payment-Timeouts pruefen (alle 60 Sekunden)
+  // 8c. Payment-Timeouts prüfen (alle 60 Sekunden)
   const client = discordBot.getClient();
   if (client) {
     client.once('ready', () => {
@@ -165,7 +165,7 @@ async function main() {
       setInterval(() => {
         try {
           const deleted = pruneMessages(5000);
-          if (deleted > 0) logger.info(`[Server] ${deleted} alte Chat-Nachrichten geloescht.`);
+          if (deleted > 0) logger.info(`[Server] ${deleted} alte Chat-Nachrichten gelöscht.`);
         } catch (err) {
           logger.error(`[Server] Chat-Prune fehlgeschlagen: ${err.message}`);
         }
@@ -185,7 +185,7 @@ async function main() {
       process.exit(0);
     });
 
-    // Timeout fuer erzwungenes Beenden
+    // Timeout für erzwungenes Beenden
     setTimeout(() => {
       logger.error('[Server] Timeout beim Herunterfahren. Erzwinge Beenden.');
       process.exit(1);

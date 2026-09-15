@@ -14,7 +14,7 @@ export function setInstances(discord, bridge) {
 }
 
 /**
- * Gibt den Discord-Client zurueck (oder null wenn offline).
+ * Gibt den Discord-Client zurück (oder null wenn offline).
  * @returns {import('discord.js').Client|null}
  */
 export function getDiscordClient() {
@@ -58,7 +58,7 @@ router.post('/discord/start', authenticateToken, requireAdmin, async (req, res) 
     discordBot = new DiscordBot();
     const started = await discordBot.start();
     if (!started) {
-      return res.status(502).json({ error: 'Discord-Bot konnte nicht gestartet werden. Bitte Token und Discord-Status pruefen.' });
+      return res.status(502).json({ error: 'Discord-Bot konnte nicht gestartet werden. Bitte Token und Discord-Status prüfen.' });
     }
     emitStatusUpdate();
     return res.json({ ok: true, message: 'Discord-Bot gestartet.' });

@@ -35,7 +35,7 @@ export class AfkBot {
       auth: this.auth,
       hideErrors: true,
       onMsaCode: (code) => {
-        logger.info(`[AFK] Microsoft-Auth fuer ${this.username}: ${code.verification_uri}?otc=${code.user_code}`);
+        logger.info(`[AFK] Microsoft-Auth für ${this.username}: ${code.verification_uri}?otc=${code.user_code}`);
       },
     };
 

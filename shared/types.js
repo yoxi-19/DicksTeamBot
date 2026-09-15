@@ -2,7 +2,7 @@
 // Wird von Discord, Minecraft und dem Server verwendet.
 
 /**
- * Kategorie einer Chat-Nachricht fuer das Dashboard.
+ * Kategorie einer Chat-Nachricht für das Dashboard.
  * @readonly
  * @enum {string}
  */
@@ -72,7 +72,7 @@ export const LogCategory = Object.freeze({
 
 /**
  * Standard-Konfigurationswerte (werden beim ersten Start in die DB geschrieben).
- * Alle Werte koennen spaeter ueber das Dashboard oder das config-System geaendert werden.
+ * Alle Werte können später über das Dashboard oder das config-System geändert werden.
  */
 export const DEFAULT_SETTINGS = Object.freeze({
   // Discord-Rollen-IDs (leer = deaktiviert)
@@ -99,7 +99,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
   // Verifizierungs-Einstellungen
   verify: {
-    // Gueltigkeitsdauer des Codes in Millisekunden (5 Minuten)
+    // Gültigkeitsdauer des Codes in Millisekunden (5 Minuten)
     codeTtlMs: 5 * 60 * 1000,
     // Laenge des zufaelligen Codes
     codeLength: 6,
@@ -109,20 +109,20 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
   // Team-Einstellungen
   team: {
-    // Name des Teams für die Annahme-Anweisung nach einem Invite
+    // Name des Teams für die Annahme-Änweisung nach einem Invite
     name: 'Dicks5',
-    // Wie lange Team-Einladungen gueltig sind (ms)
+    // Wie lange Team-Einladungen gültig sind (ms)
     inviteTtlMs: 30 * 60 * 1000,
   },
 
-  // Team-Raenge (1 = hoechstes Team, count = Einstieg).
+  // Team-Ränge (1 = höchstes Team, count = Einstieg).
   // Jede Rangstufe hat eine eigene Discord-Rolle und einen Owner mit Extra-Rolle.
   teamRanks: {
     // Anzahl der Teams/Rangstufen (anpassbar, 1-10)
     count: 5,
-    // Rollen-IDs je Rangstufe (Schluessel = Rangnummer als String)
+    // Rollen-IDs je Rangstufe (Schlüssel = Rangnummer als String)
     roles: { 1: '', 2: '', 3: '', 4: '', 5: '' },
-    // Extra-Rollen-IDs fuer die Owner je Rangstufe
+    // Extra-Rollen-IDs für die Owner je Rangstufe
     ownerRoles: { 1: '', 2: '', 3: '', 4: '', 5: '' },
     // Owner-Discord-IDs je Rangstufe ('' = kein Owner)
     owners: { 1: '', 2: '', 3: '', 4: '', 5: '' },
@@ -134,13 +134,13 @@ export const DEFAULT_SETTINGS = Object.freeze({
     verifyCooldownMs: 60 * 1000,
     // Wie lange Buttons aktiv bleiben (ms), 0 = unendlich
     buttonTtlMs: 0,
-    // Timeout fuer Zahlungsaufforderung in ms (10 Minuten)
+    // Timeout für Zahlungsaufforderung in ms (10 Minuten)
     paymentTimeoutMs: 10 * 60 * 1000,
   },
 
   // Payment-Einstellungen
   payment: {
-    // Empfaenger-IGN (TeamBank)
+    // Empfänger-IGN (TeamBank)
     recipient: 'DicksTeamBank',
     // Erforderlicher Betrag in $
     amount: 250000,
@@ -149,7 +149,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   // AFK-Bots: Liste von MC-Konten, die auf dem Server AFK stehen
   afkAccounts: [],
 
-  // Regex-Muster fuer die Minecraft-Bridge.
+  // Regex-Muster für die Minecraft-Bridge.
   // Alle erkannten Muster sind konfigurierbar und NICHT hart kodiert.
   patterns: {
     // Spieler chatet (z.B. "<Spieler> Nachricht")
@@ -166,8 +166,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
     TEAM_JOIN: '(\\w{1,16})\\s+(?:has\\s+)?joined\\s+(?:your|the)\\s+team',
     // Team verlassen
     TEAM_LEFT: '(\\w{1,16})\\s+(?:has\\s+)?left\\s+(?:your|the)\\s+team',
-    // Zahlung / Transfer (z.B. "Spieler hat 250000 $ an Empfaenger ueberwiesen")
-    PAYMENT: '(?:you\\s+received\\s+\\$?[\\d.,]+\\s+from\\s+\\w{1,16}|\\w{1,16}\\s+(?:paid|sent|transferred|hat)\\b.*(?:to|an|an\\s+den|bezahlt|ueberwiesen))',
+    // Zahlung / Transfer (z.B. "Spieler hat 250000 $ an Empfänger überwiesen")
+    PAYMENT: '(?:you\\s+received\\s+\\$?[\\d.,]+\\s+from\\s+\\w{1,16}|\\w{1,16}\\s+(?:paid|sent|transferred|hat)\\b.*(?:to|an|an\\s+den|bezahlt|überwiesen))',
     // Auktion / Handel (z.B. "ORDERS » ... created an ... order")
     AUCTION: '^ORDERS?\\s*[»>]',
     // Private Nachricht an den Bot (z.B. "[DicksBot -> Ich] CODE")
@@ -206,7 +206,7 @@ export function hexToDecimal(hex) {
 /**
  * Sanitisiert einen Minecraft-Namen (3-16 Zeichen, alphanumerisch plus Unterstriche).
  * @param {string} name
- * @returns {string|null} Sanitisierter Name oder null bei Ungueltigkeit.
+ * @returns {string|null} Sanitisierter Name oder null bei Ungültigkeit.
  */
 export function sanitizeIgn(name) {
   if (typeof name !== 'string') return null;

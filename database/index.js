@@ -32,7 +32,7 @@ export function initDatabase(dbPath) {
 }
 
 /**
- * Fuehrt alle Migrationen in ./migrations in Reihenfolge aus.
+ * Führt alle Migrationen in ./migrations in Reihenfolge aus.
  */
 function runMigrations() {
   // Tabelle zuerst anlegen (falls sie noch nicht existiert)
@@ -67,7 +67,7 @@ function runMigrations() {
 }
 
 /**
- * Gibt die Datenbank-Instanz zurueck.
+ * Gibt die Datenbank-Instanz zurück.
  * @returns {Database.Database}
  */
 export function getDb() {
@@ -162,7 +162,7 @@ export function upsertUser(data) {
 }
 
 /**
- * Loescht die Verknuepfung eines Benutzers (unlink).
+ * Löscht die Verknuepfung eines Benutzers (unlink).
  * @param {string} discordId
  */
 export function unlinkUser(discordId) {
@@ -176,7 +176,7 @@ export function unlinkUser(discordId) {
 }
 
 /**
- * Gibt alle Benutzer zurueck (optional gefiltert).
+ * Gibt alle Benutzer zurück (optional gefiltert).
  * @returns {object[]}
  */
 export function listUsers() {
@@ -287,7 +287,7 @@ export function createApplication({ discordId, ign }) {
 }
 
 /**
- * Gibt alle Bewerbungen zurueck (optional nach Status gefiltert).
+ * Gibt alle Bewerbungen zurück (optional nach Status gefiltert).
  * @param {string|null} status
  * @returns {object[]}
  */
@@ -399,9 +399,9 @@ export function listMessages(limit = 500) {
 }
 
 /**
- * Loescht alte Chat-Nachrichten, behaelt nur die neuesten.
+ * Löscht alte Chat-Nachrichten, behaelt nur die neuesten.
  * @param {number} keep
- * @returns {number} Anzahl geloeschter Zeilen
+ * @returns {number} Anzahl gelöschter Zeilen
  */
 export function pruneMessages(keep = 5000) {
   const info = getDb()
@@ -443,7 +443,7 @@ export function setSetting(key, value) {
 }
 
 /**
- * Gibt alle Einstellungen als Objekt zurueck.
+ * Gibt alle Einstellungen als Objekt zurück.
  * @returns {Record<string, unknown>}
  */
 export function listSettings() {
@@ -479,7 +479,7 @@ export function createPayment({ discordId, ign, amount, recipient, timeoutMs }) 
 }
 
 /**
- * Findet ein aktives (pending) Payment fuer einen Discord-User.
+ * Findet ein aktives (pending) Payment für einen Discord-User.
  * @param {string} discordId
  * @returns {object|null}
  */
@@ -569,7 +569,7 @@ export function findLatestConfirmedPayment(discordId) {
 }
 
 /**
- * Beansprucht ein Payment atomar fuer den Refund.
+ * Beansprucht ein Payment atomar für den Refund.
  * Markiert es NUR dann als 'refunding', wenn es noch 'confirmed' ist.
  * Der Rueckgabewert changes === 1 bedeutet: nur dieser Aufruf darf zahlen.
  * Schuetzt vor Doppel-Refunds (Timer, Retry, Neustart).
@@ -585,7 +585,7 @@ export function claimPaymentForRefund(id) {
 
 /**
  * Macht eine Refund-Beanspruchung rueckgaengig (z.B. Bot offline).
- * Nur moeglich solange noch 'refunding' – ein REFUNDED bleibt fuer immer.
+ * Nur möglich solange noch 'refunding' – ein REFUNDED bleibt für immer.
  * @param {number} id
  */
 export function releaseRefundClaim(id) {

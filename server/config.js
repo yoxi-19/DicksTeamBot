@@ -2,7 +2,7 @@
 // - Geheimnisse/statische Werte: .env
 // - Regex/IDs/Farben/Laufzeit-Werte: SQLite (settings Tabelle)
 // - Standardwerte beim ersten Start: DEFAULT_SETTINGS aus shared/types.js
-// Das System unterstuetzt Hot-Reload: geaenderte Einstellungen werden via Event weitergegeben.
+// Das System unterstuetzt Hot-Reload: geänderte Einstellungen werden via Event weitergegeben.
 
 import { EventEmitter } from 'node:events';
 import { DEFAULT_SETTINGS, SETTING_KEYS, sanitizeIgn, validateRegex } from '../shared/types.js';
@@ -67,7 +67,7 @@ class ConfigService extends EventEmitter {
     this.cache = {};
     for (const key of SETTING_KEYS) {
       let value = all[`${SETTINGS_PREFIX}${key}`];
-      // Nur bekannte Schluessel uebernehmen, fehlende mit Defaults ueberschreiben.
+      // Nur bekannte Schlüssel uebernehmen, fehlende mit Defaults überschreiben.
       if (value === undefined) {
         value = DEFAULT_SETTINGS[key];
       }
@@ -105,7 +105,7 @@ class ConfigService extends EventEmitter {
   }
 
   /**
-   * Gibt einen einzelnen Konfigurationswert zurueck.
+   * Gibt einen einzelnen Konfigurationswert zurück.
    * @param {string} key
    * @param {unknown} fallback
    * @returns {unknown}
@@ -116,7 +116,7 @@ class ConfigService extends EventEmitter {
   }
 
   /**
-   * Gibt die komplette Konfiguration als tiefe Kopie zurueck.
+   * Gibt die komplette Konfiguration als tiefe Kopie zurück.
    * @returns {Record<string, unknown>}
    */
   getAll() {
@@ -186,9 +186,9 @@ class ConfigService extends EventEmitter {
       case 'channelVerify':
       case 'channelTeam':
       case 'channelJoinLogs':
-        // IDs koennen leer oder eine Snowflake sein.
+        // IDs können leer oder eine Snowflake sein.
         if (value !== '' && value !== null && !/^\d{15,20}$/.test(String(value))) {
-          return 'Muss leer oder eine gueltige ID (Snowflake) sein.';
+          return 'Muss leer oder eine gültige ID (Snowflake) sein.';
         }
         return null;
       case 'colors':
@@ -222,7 +222,7 @@ class ConfigService extends EventEmitter {
             for (const [rankKey, roleVal] of Object.entries(value[field])) {
               if (!/^\d+$/.test(rankKey)) return `Rang "${rankKey}" muss eine Zahl sein.`;
               if (roleVal !== '' && roleVal !== null && !/^\d{15,20}$/.test(String(roleVal))) {
-                return `Rolle fuer Rang ${rankKey} muss leer oder eine gueltige ID (Snowflake) sein.`;
+                return `Rolle für Rang ${rankKey} muss leer oder eine gültige ID (Snowflake) sein.`;
               }
             }
           }
@@ -232,7 +232,7 @@ class ConfigService extends EventEmitter {
           for (const [rankKey, ownerVal] of Object.entries(value.owners)) {
             if (!/^\d+$/.test(rankKey)) return `Rang "${rankKey}" muss eine Zahl sein.`;
             if (ownerVal !== '' && ownerVal !== null && !/^\d{15,20}$/.test(String(ownerVal))) {
-              return `Owner fuer Rang ${rankKey} muss leer oder eine gueltige Discord-ID sein.`;
+              return `Owner für Rang ${rankKey} muss leer oder eine gültige Discord-ID sein.`;
             }
           }
         }
@@ -259,7 +259,7 @@ class ConfigService extends EventEmitter {
           }
           const regexError = validateRegex(patternStr);
           if (regexError) {
-            return `Muster "${patternKey}" ist kein gueltiger Regex: ${regexError}`;
+            return `Muster "${patternKey}" ist kein gültiger Regex: ${regexError}`;
           }
         }
         return null;
@@ -269,7 +269,7 @@ class ConfigService extends EventEmitter {
   }
 
   /**
-   * Gibt die aktuellen Regex-Muster als kompilierte RegExp-Objekte zurueck.
+   * Gibt die aktuellen Regex-Muster als kompilierte RegExp-Objekte zurück.
    * @returns {Record<string, RegExp>}
    */
   getCompiledPatterns() {
@@ -286,7 +286,7 @@ class ConfigService extends EventEmitter {
   }
 
   /**
-   * Gibt die Farben zurueck.
+   * Gibt die Farben zurück.
    * @returns {Record<string, string>}
    */
   getColors() {
@@ -318,7 +318,7 @@ class ConfigService extends EventEmitter {
 
 export const configService = new ConfigService();
 
-// Re-export fuer bequemen Zugriff.
+// Re-export für bequemen Zugriff.
 export { sanitizeIgn };
 
 export default configService;

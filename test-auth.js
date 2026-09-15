@@ -1,10 +1,10 @@
-// Test-Skript: Microsoft Auth fuer mineflayer testen.
-// Fuehre aus mit: node test-auth.js
+// Test-Skript: Microsoft Auth für mineflayer testen.
+// Führe aus mit: node test-auth.js
 
 import mineflayer from 'mineflayer';
 
 console.log('Starte Microsoft-Auth Test...');
-console.log('Wenn ein Browser-Fenster oeffnet: Einloggen mit dem Minecraft-Account.');
+console.log('Wenn ein Browser-Fenster öffnet: Einloggen mit dem Minecraft-Account.');
 
 const bot = mineflayer.createBot({
   host: 'windsmp.net',
@@ -18,9 +18,9 @@ const bot = mineflayer.createBot({
     console.log('========================================');
     console.log('  Microsoft Auth erforderlich!');
     console.log('========================================');
-    console.log(`Oeffne: ${code.verificationUri}`);
+    console.log(`Öffne: ${code.verificationUri}`);
     console.log(`Code:   ${code.userCode}`);
-    console.log(`Gueltig fuer: ${code.expiresIn}s`);
+    console.log(`Gültig für: ${code.expiresIn}s`);
     console.log('');
     console.log(`Link direkt: ${code.verificationUri}?user_code=${code.userCode}`);
     console.log('========================================');

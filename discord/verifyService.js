@@ -12,8 +12,8 @@ import { sendPaymentEmbed } from './paymentService.js';
 import { removeRankRoles, clearOwnerSlots } from './teamService.js';
 
 /**
- * Startet die Verifizierung fuer einen Discord-Nutzer.
- * Erzeugt einen Code und speichert ihn 5 Minuten gueltig in der DB.
+ * Startet die Verifizierung für einen Discord-Nutzer.
+ * Erzeugt einen Code und speichert ihn 5 Minuten gültig in der DB.
  * @param {import('discord.js').Client} client
  * @param {import('discord.js').Guild} guild
  * @param {string} discordId
@@ -23,10 +23,10 @@ import { removeRankRoles, clearOwnerSlots } from './teamService.js';
 export async function startVerification(client, guild, discordId, ign) {
   const cleanIgn = sanitizeIgn(ign);
   if (!cleanIgn) {
-    return { ok: false, error: 'Ungueltiger Minecraft-Name. Der Name muss 3-16 Zeichen (Buchstaben, Zahlen, Unterstrich) enthalten.' };
+    return { ok: false, error: 'Ungültiger Minecraft-Name. Der Name muss 3-16 Zeichen (Buchstaben, Zahlen, Unterstrich) enthalten.' };
   }
 
-  // Pruefen, ob der IGN bereits von jemand anderem verifiziert wurde.
+  // Prüfen, ob der IGN bereits von jemand anderem verifiziert wurde.
   const existingByIgn = db.findUserByIgn(cleanIgn);
   if (existingByIgn && existingByIgn.discord_id && existingByIgn.discord_id !== discordId) {
     return { ok: false, error: 'Dieser Minecraft-Name ist bereits mit einem anderen Discord-Konto verknuepft.' };
@@ -48,7 +48,7 @@ export async function startVerification(client, guild, discordId, ign) {
     ttlMs,
   });
 
-  logger.info(`[Verify] Code ${code} fuer Discord ${discordId} (IGN ${cleanIgn}) erstellt.`);
+  logger.info(`[Verify] Code ${code} für Discord ${discordId} (IGN ${cleanIgn}) erstellt.`);
 
   return { ok: true, code, ign: cleanIgn, record };
 }
@@ -64,12 +64,12 @@ export async function startVerification(client, guild, discordId, ign) {
 export async function completeVerification(client, code, submittedIgn) {
   const record = db.findActiveCode(code);
   if (!record) {
-    return { ok: false, message: 'Ungueltiger oder abgelaufener Code.' };
+    return { ok: false, message: 'Ungültiger oder abgelaufener Code.' };
   }
 
   const messageId = record.message_id || null;
 
-  // IGN-Abgleich: Pruefen ob der Spieler, der den Code sendet, der richtige ist.
+  // IGN-Abgleich: Prüfen ob der Spieler, der den Code sendet, der richtige ist.
   if (submittedIgn && record.ign.toLowerCase() !== submittedIgn.toLowerCase()) {
     return { ok: false, message: 'MISMATCH', discordId: record.discord_id, messageId };
   }
@@ -102,7 +102,7 @@ export async function completeVerification(client, code, submittedIgn) {
     color: 'success',
   });
 
-  // Reihenfolge fuer den Nutzer: erst die erfolgreiche Verifizierung, danach
+  // Reihenfolge für den Nutzer: erst die erfolgreiche Verifizierung, danach
   // die konkrete Zahlungsaufforderung – beide in derselben DM-Unterhaltung.
   try {
     const { EmbedBuilder } = await import('discord.js');
@@ -131,7 +131,7 @@ export async function completeVerification(client, code, submittedIgn) {
 }
 
 /**
- * Erzwingt eine Verifizierung durch einen Admin (ueberschreibt).
+ * Erzwingt eine Verifizierung durch einen Admin (überschreibt).
  * @param {import('discord.js').Client} client
  * @param {string} discordId
  * @param {string} ign
@@ -140,7 +140,7 @@ export async function completeVerification(client, code, submittedIgn) {
 export async function forceVerify(client, discordId, ign) {
   const cleanIgn = sanitizeIgn(ign);
   if (!cleanIgn) {
-    return { ok: false, message: 'Ungueltiger Minecraft-Name.' };
+    return { ok: false, message: 'Ungültiger Minecraft-Name.' };
   }
 
   const user = db.upsertUser({

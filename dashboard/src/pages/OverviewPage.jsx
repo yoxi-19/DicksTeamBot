@@ -79,7 +79,7 @@ export default function OverviewPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Uebersicht</h1>
+        <h1 className="text-2xl font-bold text-gray-100">Übersicht</h1>
         <p className="text-sm text-gray-600 mt-1">Echtzeit-Status deines Team DICKS TeamBots</p>
       </div>
 

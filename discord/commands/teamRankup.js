@@ -40,7 +40,7 @@ export default {
     const cleanIgn = ignOption ? sanitizeIgn(ignOption) : null;
     if (ignOption && !cleanIgn) {
       await interaction.reply({
-        embeds: [errorEmbed('Ungueltiger Name', 'Der Minecraft-Name ist ungueltig.')],
+        embeds: [errorEmbed('Ungültiger Name', 'Der Minecraft-Name ist ungültig.')],
         ephemeral: true,
       });
       return;
@@ -56,7 +56,7 @@ export default {
     const oldRank = getUserRank(found.user, cfg);
     if (oldRank <= 1) {
       await interaction.reply({
-        embeds: [errorEmbed('Bereits oben', `**${found.user.ign}** ist bereits in Team **1** (hoechster Rang).`)],
+        embeds: [errorEmbed('Bereits oben', `**${found.user.ign}** ist bereits in Team **1** (höchster Rang).`)],
         ephemeral: true,
       });
       return;

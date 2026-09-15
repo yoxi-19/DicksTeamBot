@@ -17,7 +17,7 @@ export function nowMs() {
 }
 
 /**
- * Prueft, ob ein Zeitstempel (ms) noch nicht abgelaufen ist.
+ * Prüft, ob ein Zeitstempel (ms) noch nicht abgelaufen ist.
  * @param {number} createdMs
  * @param {number} ttlMs
  * @returns {boolean}
@@ -27,7 +27,7 @@ export function isNotExpired(createdMs, ttlMs) {
 }
 
 /**
- * Formatiert Zeitstempel fuer die Anzeige (Deutsch).
+ * Formatiert Zeitstempel für die Anzeige (Deutsch).
  * @param {number} ms
  * @returns {string}
  */
@@ -61,7 +61,7 @@ export function formatDate(input) {
 }
 
 /**
- * Uhrzeit-Anteil eines Zeitstempels (HH:MM:SS), fuer Chat-Listen.
+ * Uhrzeit-Anteil eines Zeitstempels (HH:MM:SS), für Chat-Listen.
  * @param {number|string|Date} input
  * @returns {string}
  */
@@ -71,7 +71,7 @@ export function formatTime(input) {
 }
 
 /**
- * Einfache zufaellige ID (nicht kryptografisch), fuer Log-Referenzen.
+ * Einfache zufaellige ID (nicht kryptografisch), für Log-Referenzen.
  * @returns {string}
  */
 export function randomId() {

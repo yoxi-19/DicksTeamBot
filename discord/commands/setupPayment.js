@@ -7,12 +7,12 @@ import configService from '../../server/config.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-payment')
-    .setDescription('Zeigt oder setzt die Payment-Einstellungen (Empfaenger, Betrag).')
+    .setDescription('Zeigt oder setzt die Payment-Einstellungen (Empfänger, Betrag).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((opt) =>
       opt
         .setName('empfaenger')
-        .setDescription('IGN des Empfaengers (z.B. DicksTeamBank)')
+        .setDescription('IGN des Empfängers (z.B. DicksTeamBank)')
         .setRequired(false),
     )
     .addIntegerOption((opt) =>
@@ -53,7 +53,7 @@ export default {
       await interaction.reply({
         embeds: [successEmbed(
           'Payment-Einstellungen',
-          `**Empfaenger:** \`${payment.recipient || 'DicksTeamBank'}\`\n` +
+          `**Empfänger:** \`${payment.recipient || 'DicksTeamBank'}\`\n` +
           `**Betrag:** \`$${(payment.amount || 250000).toLocaleString('de-DE')}\`\n` +
           `**Timeout:** \`${timeoutMin} Minuten\``,
         )],
@@ -67,7 +67,7 @@ export default {
 
     if (empfaenger) {
       updates.payment = { ...(configService.get('payment', {})), recipient: empfaenger };
-      lines.push(`**Empfaenger:** \`${empfaenger}\``);
+      lines.push(`**Empfänger:** \`${empfaenger}\``);
     }
     if (betrag !== null) {
       updates.payment = { ...(updates.payment || configService.get('payment', {})), amount: betrag };

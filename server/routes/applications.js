@@ -51,7 +51,7 @@ router.post('/:id/review', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Diese Bewerbung wurde bereits bearbeitet.' });
     }
 
-    // Review mit dem Discord-Client ausfuehren (wenn verfuegbar)
+    // Review mit dem Discord-Client ausführen (wenn verfuegbar)
     // Falls kein Client verfuegbar (nur API), manuell aktualisieren.
     const reviewedBy = req.user?.username || 'dashboard';
     db.updateApplicationStatus(applicationId, decision === 'accepted' ? ApplicationStatus.ACCEPTED : ApplicationStatus.REJECTED, reviewedBy);

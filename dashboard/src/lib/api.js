@@ -1,7 +1,7 @@
-// Variable: API-Helfer fuer fetch-Aufrufe mit JWT-Token.
+// Variable: API-Helfer für fetch-Aufrufe mit JWT-Token.
 
 /**
- * Fuehrt einen API-Aufruf mit Authorization-Header aus.
+ * Führt einen API-Aufruf mit Authorization-Header aus.
  * @param {string} url
  * @param {object} opts { method, body, token, ... }
  * @returns {Promise<object>}

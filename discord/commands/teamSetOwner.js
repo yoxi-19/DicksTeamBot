@@ -14,7 +14,7 @@ export default {
     .setDescription('Setzt den Owner eines Teams (ohne Nutzer zum Leeren).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addIntegerOption((opt) =>
-      opt.setName('team').setDescription('Team (1 = hoechstes)').setRequired(true).setMinValue(1).setMaxValue(10),
+      opt.setName('team').setDescription('Team (1 = höchstes)').setRequired(true).setMinValue(1).setMaxValue(10),
     )
     .addUserOption((opt) =>
       opt.setName('nutzer').setDescription('Der Discord-Nutzer (leer = Slot leeren)').setRequired(false),
@@ -36,7 +36,7 @@ export default {
     const cfg = getRankConfig();
     if (team < 1 || team > cfg.count) {
       await interaction.reply({
-        embeds: [errorEmbed('Ungueltiges Team', `Es gibt aktuell **${cfg.count}** Teams. Waehle 1 bis ${cfg.count}.`)],
+        embeds: [errorEmbed('Ungültiges Team', `Es gibt aktuell **${cfg.count}** Teams. Waehle 1 bis ${cfg.count}.`)],
         ephemeral: true,
       });
       return;
@@ -52,7 +52,7 @@ export default {
       const cleanIgn = sanitizeIgn(ignOption);
       if (!cleanIgn) {
         await interaction.reply({
-          embeds: [errorEmbed('Ungueltiger Name', 'Der Minecraft-Name ist ungueltig.')],
+          embeds: [errorEmbed('Ungültiger Name', 'Der Minecraft-Name ist ungültig.')],
           ephemeral: true,
         });
         return;

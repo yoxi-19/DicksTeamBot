@@ -1,5 +1,5 @@
 // Variable: Discord InteractionCreate-Event.
-// Zentraler Dispatcher fuer alle Slash-Befehle, Buttons, Modals und Select Menus.
+// Zentraler Dispatcher für alle Slash-Befehle, Buttons, Modals und Select Menus.
 
 import { Events } from 'discord.js';
 import logger from '../../shared/logger.js';
@@ -57,7 +57,7 @@ async function handleChatInputCommand(interaction, bot) {
   } catch (err) {
     logger.error(`[Discord] Fehler bei Befehl /${interaction.commandName}: ${err.message}`);
     const reply = {
-      content: 'Ein interner Fehler ist beim Ausfuehren dieses Befehls aufgetreten.',
+      content: 'Ein interner Fehler ist beim Ausführen dieses Befehls aufgetreten.',
       ephemeral: true,
     };
     if (interaction.replied || interaction.deferred) {
@@ -98,5 +98,5 @@ async function handleModalSubmit(interaction, client) {
  */
 async function handleSelectMenu(interaction, client) {
   logger.debug(`[Discord] Select Menu ${interaction.customId} von ${interaction.user.tag}`);
-  // Fuer spaetere Erweiterungen (z.B. Log-Filter, Config-Auswahl)
+  // Für spätere Erweiterungen (z.B. Log-Filter, Config-Auswahl)
 }

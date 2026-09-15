@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 const sections = [
   { title: 'Discord-Rollen', description: 'Leer lassen, um eine automatische Rollenzuweisung auszuschalten.', dynamic: 'discordRoles', fields: [['roleVerified', 'Verifiziert'], ['roleTeam', 'Team'], ['roleJoin', 'Beitrittsanfrage'], ['roleAdmin', 'Admin']] },
   { title: 'Discord-Kanäle', description: 'Discord-Channel-IDs für Panels und Protokolle.', fields: [['channelLogs', 'Logs (Verify/Team)'], ['channelJoinLogs', 'Join/Leave-Transkripte'], ['channelVerify', 'Verifizierung'], ['channelTeam', 'Team']] },
-  { title: 'Verifizierung', description: 'Code-Länge, Gültigkeit und der Hinweis für Spieler.', fields: [['verify.codeLength', 'Code-Länge', 'number'], ['verify.codeTtlMs', 'Gültigkeit (ms)', 'number'], ['verify.verifyCommand', 'Anweisung']] },
+  { title: 'Verifizierung', description: 'Code-Länge, Gültigkeit und der Hinweis für Spieler.', fields: [['verify.codeLength', 'Code-Länge', 'number'], ['verify.codeTtlMs', 'Gültigkeit (ms)', 'number'], ['verify.verifyCommand', 'Änweisung']] },
   { title: 'Zahlung', description: 'Empfänger und Betrag für den Team-Beitritt.', fields: [['payment.recipient', 'Empfänger-IGN'], ['payment.amount', 'Betrag ($)', 'number'], ['timeouts.paymentTimeoutMs', 'Timeout (ms)', 'number']] },
   { title: 'Team', description: 'Name des Teams und Zeitwerte für Einladungen.', fields: [['team.name', 'Teamname'], ['team.inviteTtlMs', 'Einladung gültig (ms)', 'number'], ['timeouts.verifyCooldownMs', 'Verify-Cooldown (ms)', 'number'], ['timeouts.buttonTtlMs', 'Button-Timeout (ms)', 'number']] },
 ];

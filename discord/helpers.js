@@ -49,10 +49,10 @@ export async function syncNickname(guild, discordId, ign) {
       return true; // Nickname stimmt schon
     }
     await member.setNickname(nickname, nickname ? 'IGN-Synchronisierung' : 'Verifizierung entfernt');
-    logger.info(`[Discord] Nickname geaendert: ${member.user.tag} -> ${nickname || 'zurueckgesetzt'}`);
+    logger.info(`[Discord] Nickname geändert: ${member.user.tag} -> ${nickname || 'zurückgesetzt'}`);
     return true;
   } catch (err) {
-    logger.warn(`[Discord] Nickname-Sync fehlgeschlagen fuer ${discordId}: ${err.message}`);
+    logger.warn(`[Discord] Nickname-Sync fehlgeschlagen für ${discordId}: ${err.message}`);
     return false;
   }
 }
@@ -196,7 +196,7 @@ export async function sendLogEmbed(client, { category, title, description = null
 }
 
 /**
- * Uebersetzt Log-Kategorien in deutsche Labels.
+ * Übersetzt Log-Kategorien in deutsche Labels.
  * @param {string} category
  * @returns {string}
  */
@@ -256,7 +256,7 @@ export function errorEmbed(title, description) {
 }
 
 /**
- * Erstellt einen deutschen Zeitstempel-String fuer Embeds.
+ * Erstellt einen deutschen Zeitstempel-String für Embeds.
  * @param {Date} date
  * @returns {string}
  */

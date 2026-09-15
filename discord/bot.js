@@ -103,7 +103,7 @@ export class DiscordBot {
           this.commands.set(command.data.name, command);
           logger.debug(`[Discord] Befehl geladen: /${command.data.name}`);
         } else {
-          logger.warn(`[Discord] Befehl ${file} hat gueltiges Format.`);
+          logger.warn(`[Discord] Befehl ${file} hat gültiges Format.`);
         }
       } catch (err) {
         logger.error(`[Discord] Fehler beim Laden von ${file}: ${err.message}`);
@@ -148,7 +148,7 @@ export class DiscordBot {
   }
 
   /**
-   * Gibt den Client zurueck.
+   * Gibt den Client zurück.
    * @returns {Client}
    */
   getClient() {

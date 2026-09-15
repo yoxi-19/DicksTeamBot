@@ -1,4 +1,4 @@
-// Variable: /reset - Setzt den eigenen Account zurueck.
+// Variable: /reset - Setzt den eigenen Account zurück.
 // Erlaubt es Nutzern, sich selbst aus dem System zu entfernen und neu zu starten.
 
 import { SlashCommandBuilder } from 'discord.js';
@@ -10,7 +10,7 @@ import { unlink } from '../verifyService.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('reset')
-    .setDescription('Setzt deinen Account zurueck. Du kannst danach neu verifizieren.'),
+    .setDescription('Setzt deinen Account zurück. Du kannst danach neu verifizieren.'),
 
   async execute(interaction) {
     const user = db.findUserByDiscord(interaction.user.id);
@@ -25,7 +25,7 @@ export default {
 
     if (user.status === PlayerStatus.TEAM) {
       await interaction.reply({
-        embeds: [errorEmbed('Team-Mitglied', 'Du bist Team-Mitglied. Bitte wende dich an einen Admin, um dich zurueckzusetzen.')],
+        embeds: [errorEmbed('Team-Mitglied', 'Du bist Team-Mitglied. Bitte wende dich an einen Admin, um dich zurückzusetzen.')],
         ephemeral: true,
       });
       return;
@@ -42,7 +42,7 @@ export default {
     }
 
     await interaction.reply({
-      embeds: [successEmbed('Zurueckgesetzt', `${result.message} Du kannst jetzt neu verifizieren.`)],
+      embeds: [successEmbed('Zurückgesetzt', `${result.message} Du kannst jetzt neu verifizieren.`)],
       ephemeral: true,
     });
   },

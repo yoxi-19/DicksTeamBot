@@ -1,5 +1,5 @@
 // Variable: Payment-API-Routen.
-// Stellt Endpunkte fuer die Payment-Verwaltung bereit.
+// Stellt Endpunkte für die Payment-Verwaltung bereit.
 
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.js';
@@ -50,7 +50,7 @@ router.get('/stats/overview', authenticateToken, (req, res) => {
 router.get('/:id', authenticateToken, (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungueltige Payment-ID.' });
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungültige Payment-ID.' });
     const payment = db.findPaymentById(id);
     if (!payment) return res.status(404).json({ error: 'Payment nicht gefunden.' });
     return res.json(payment);

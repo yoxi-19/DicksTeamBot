@@ -1,5 +1,5 @@
 // Variable: Discord-Live-Route - liest echte Daten vom Discord-Server.
-// Damit muessen keine IDs getippt werden: Rollen kommen per Dropdown,
+// Damit müssen keine IDs getippt werden: Rollen kommen per Dropdown,
 // und der Rank-Check zeigt, wer welche Rolle wirklich hat.
 
 import { Router } from 'express';
@@ -44,14 +44,14 @@ function serializeMembers(guild, members) {
 }
 
 // Einzelne bekannte Mitglieder lassen sich auch ohne privilegierten
-// GuildMembers-Intent abrufen. Das ist der sichere Fallback fuer verknuepfte
+// GuildMembers-Intent abrufen. Das ist der sichere Fallback für verknuepfte
 // Konten; nur die Auflistung unbekannter Servermitglieder bleibt dann aus.
 async function fetchLinkedMembers(guild) {
   const result = new Map();
   const ids = db.listUsers().map((user) => user.discord_id).filter(Boolean);
   await Promise.all(ids.map(async (id) => {
     // force vermeidet einen veralteten Rollen-Cache nach einer manuellen
-    // Rollen-Aenderung direkt in Discord.
+    // Rollen-Änderung direkt in Discord.
     const member = await guild.members.fetch({ user: id, force: true }).catch(() => null);
     if (member) result.set(member.id, member);
   }));
@@ -59,7 +59,7 @@ async function fetchLinkedMembers(guild) {
 }
 
 // Der globale Member-Download braucht den privilegierten Members-Intent und
-// kann ohne ihn den Discord-Gateway-Worker blockieren. Fuer den Rollen-Sync
+// kann ohne ihn den Discord-Gateway-Worker blockieren. Für den Rollen-Sync
 // sind ohnehin nur verknuepfte Nutzer relevant; diese werden gezielt geladen.
 async function fetchDashboardMembers(guild) {
   return { members: await fetchLinkedMembers(guild), limited: true };
@@ -69,7 +69,7 @@ async function getGuildRole(guild, roleId) {
   return guild.roles.cache.get(roleId) || guild.roles.fetch(roleId).catch(() => null);
 }
 
-// GET /api/discord/roles - Alle Rollen des Servers (fuer Dropdowns)
+// GET /api/discord/roles - Alle Rollen des Servers (für Dropdowns)
 router.get('/roles', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const client = getDiscordClient();
@@ -102,7 +102,7 @@ router.get('/roles', authenticateToken, requireAdmin, async (req, res) => {
 // GET /api/discord/members - Alle echten Servermitglieder inklusive ihrer Rollen.
 // Das ist bewusst von rank-check getrennt: Der Rank-Check kennt nur die
 // konfigurierten Team-Rollen und kann daher keine normalen Discord-Rollen
-// (oder nicht verknuepfte Mitglieder) fuer das Dashboard liefern.
+// (oder nicht verknuepfte Mitglieder) für das Dashboard liefern.
 router.get('/members', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const client = getDiscordClient();
@@ -164,7 +164,7 @@ router.get('/rank-check', authenticateToken, requireAdmin, async (req, res) => {
 
     // Owner automatisch aus den Owner-Rollen erkennen (nutzt die
     // bereits geladenen Member, kein zweiter API-Call). Laeuft auch im
-    // Limited-Modus: verknuepfte Member reichen fuer die Erkennung.
+    // Limited-Modus: verknuepfte Member reichen für die Erkennung.
     try {
       await detectTeamOwners(guild, members);
     } catch (err) {
@@ -204,7 +204,7 @@ router.get('/rank-check', authenticateToken, requireAdmin, async (req, res) => {
       const missing = [...dbIds]
         .filter((id) => !liveSet.has(id))
         .map((id) => ({ id, ign: ignByDiscord.get(id) || id }));
-      // Extra: Rolle vorhanden, aber laut DB nicht fuer diesen Rang vorgesehen.
+      // Extra: Rolle vorhanden, aber laut DB nicht für diesen Rang vorgesehen.
       // Mit Status, damit klar ist ob es ein verlinkter (z.B. nur verifizierter)
       // User mit Rollenrest ist oder ein voellig Unbekannter.
       const extra = liveIds
@@ -268,7 +268,7 @@ router.get('/rank-check', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // POST /api/discord/sync-roles - Gleicht alle Discord-Rollen mit der DB ab.
-// Entfernt dabei auch ueberfluessige Rollen (z.B. Reste nach DB-Wipe).
+// Entfernt dabei auch überflüssige Rollen (z.B. Reste nach DB-Wipe).
 router.post('/sync-roles', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const client = getDiscordClient();
@@ -279,7 +279,7 @@ router.post('/sync-roles', authenticateToken, requireAdmin, async (req, res) => 
     if (!result.ok) {
       return res.status(502).json({ error: result.error || 'Synchronisierung fehlgeschlagen.' });
     }
-    // Rank-Check-Cache entwerten, damit der naechste Check frisch laeuft
+    // Rank-Check-Cache entwerten, damit der nächste Check frisch laeuft
     rankCheckCache = { at: 0, data: null, errorAt: 0 };
     membersCache = { at: 0, data: [] };
     return res.json(result);

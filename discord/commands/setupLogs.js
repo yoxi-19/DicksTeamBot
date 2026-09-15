@@ -12,13 +12,13 @@ export default {
     .addChannelOption((opt) =>
       opt
         .setName('logs-kanal')
-        .setDescription('Kanal fuer Verify/Team/System Logs')
+        .setDescription('Kanal für Verify/Team/System Logs')
         .addChannelTypes(ChannelType.GuildText),
     )
     .addChannelOption((opt) =>
       opt
         .setName('join-kanal')
-        .setDescription('Kanal fuer Join/Leave-Transkripte')
+        .setDescription('Kanal für Join/Leave-Transkripte')
         .addChannelTypes(ChannelType.GuildText),
     ),
 

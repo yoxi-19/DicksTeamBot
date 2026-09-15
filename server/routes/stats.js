@@ -8,7 +8,7 @@ import configService from '../config.js';
 
 const router = Router();
 
-// GET /api/stats/overview - Uebersichtsstatistiken
+// GET /api/stats/overview - Übersichtsstatistiken
 router.get('/overview', authenticateToken, (req, res) => {
   try {
     const mcStatus = bridgeInstance.getStatus();

@@ -10,7 +10,7 @@ import { syncNickname, grantRole, removeRole, sendLogEmbed, sendDm } from './hel
 
 /**
  * Erstellt einen aktiven Payment-Eintrag falls keiner existiert und setzt
- * den User auf WAITING_PAYMENT. Idempotent – rueckgabewert ist immer gueltig.
+ * den User auf WAITING_PAYMENT. Idempotent – rueckgabewert ist immer gültig.
  */
 function ensureActivePayment(discordId, ign) {
   const existing = db.findActivePayment(discordId);
@@ -38,7 +38,7 @@ function ensureActivePayment(discordId, ign) {
   });
 
   eventBus.emitToDashboard('paymentUpdate', db.listPayments());
-  logger.info(`[Payment] Zahlung erwartet fuer ${finalIgn} (${discordId}): $${amount} an ${recipient}`);
+  logger.info(`[Payment] Zahlung erwartet für ${finalIgn} (${discordId}): $${amount} an ${recipient}`);
   return payment;
 }
 
@@ -60,10 +60,10 @@ export async function sendPaymentEmbed(client, discordId, ign) {
     .setColor(0xFEE75C)
     .setTitle('Team-Beitritt – Einzahlung erforderlich')
     .setDescription(
-      `Um dem Team beizutreten, ueberweise jetzt im Minecraft-Server:\n\n` +
+      `Um dem Team beizutreten, überweise jetzt im Minecraft-Server:\n\n` +
       `**Betrag:** $${amount.toLocaleString('de-DE')}\n` +
-      `**Empfaenger:** \`${recipient}\`\n\n` +
-      `Die Zahlung wird ab jetzt automatisch ueberwacht. Klicke auf **Zahlung starten**, um die genaue Anweisung zu sehen.`,
+      `**Empfänger:** \`${recipient}\`\n\n` +
+      `Die Zahlung wird ab jetzt automatisch überwacht. Klicke auf **Zahlung starten**, um die genaue Änweisung zu sehen.`,
     )
     .setFooter({ text: `Payment-ID: ${payment.id}` })
     .setTimestamp();
@@ -86,7 +86,7 @@ export async function sendPaymentEmbed(client, discordId, ign) {
 }
 
 /**
- * Startet die Zahlungsüberwachung. Die Anweisung wird vom Button-Handler in
+ * Startet die Zahlungsüberwachung. Die Änweisung wird vom Button-Handler in
  * derselben Discord-Interaktion angezeigt, damit keine verwirrenden DM-Hinweise entstehen.
  * @param {import('discord.js').Client} client
  * @param {string} discordId
@@ -105,22 +105,22 @@ export async function handlePaymentButton(client, discordId, ign) {
   const payment = ensureActivePayment(discordId, ign || user.ign);
 
   if (!alreadyWaiting) {
-    // Neustart nach Invite-Fehler: Ein alter Refund-Timer fuer eine fruehere
-    // bestaetigte Zahlung wird verworfen (manuell im Log pruefen).
+    // Neustart nach Invite-Fehler: Ein alter Refund-Timer für eine fruehere
+    // bestätigte Zahlung wird verworfen (manuell im Log prüfen).
     if (pendingRefunds.has(discordId)) {
       cancelRefund(discordId);
-      logger.warn(`[Payment] Alter Refund-Timer fuer ${discordId} durch Neuzahlung verworfen (Payment #${payment.id} neu). Altes Payment manuell pruefen.`);
+      logger.warn(`[Payment] Alter Refund-Timer für ${discordId} durch Neuzahlung verworfen (Payment #${payment.id} neu). Altes Payment manuell prüfen.`);
       await sendLogEmbed(client, {
         category: LogCategory.PAYMENT,
         title: 'Refund verworfen',
-        description: `<@${discordId}> hat neu gezahlt – ein alter Refund-Timer wurde gestoppt. Alte bestaetigte Payments bitte manuell pruefen.`,
+        description: `<@${discordId}> hat neu gezahlt – ein alter Refund-Timer wurde gestoppt. Alte bestätigte Payments bitte manuell prüfen.`,
         color: 'warning',
       });
     }
     await sendLogEmbed(client, {
       category: LogCategory.PAYMENT,
       title: 'Zahlung erwartet',
-      description: `<@${discordId}> (${payment.ign}) soll $${payment.amount.toLocaleString('de-DE')} an **${payment.recipient}** ueberweisen.`,
+      description: `<@${discordId}> (${payment.ign}) soll $${payment.amount.toLocaleString('de-DE')} an **${payment.recipient}** überweisen.`,
       color: 'info',
     });
   }
@@ -128,15 +128,15 @@ export async function handlePaymentButton(client, discordId, ign) {
   return { ok: true, payment, alreadyWaiting };
 }
 
-/** Baut die endgültige Anweisung nach dem Start der Zahlungsüberwachung. */
+/** Baut die endgültige Änweisung nach dem Start der Zahlungsüberwachung. */
 export async function buildPaymentInstructionEmbed(payment) {
   const { EmbedBuilder } = await import('discord.js');
   return new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle('Zahlung wird ueberwacht')
+    .setTitle('Zahlung wird überwacht')
     .setDescription(
-      `Ueberweise jetzt genau:\n\n\`\`\`\n/pay ${payment.recipient} ${payment.amount}\n\`\`\`\n\n` +
-      'Der Bot erkennt die Zahlung automatisch. Sobald sie bestaetigt ist, erhaeltst du direkt eine Team-Einladung im Spiel.',
+      `Überweise jetzt genau:\n\n\`\`\`\n/pay ${payment.recipient} ${payment.amount}\n\`\`\`\n\n` +
+      'Der Bot erkennt die Zahlung automatisch. Sobald sie bestätigt ist, erhaeltst du direkt eine Team-Einladung im Spiel.',
     )
     .setFooter({ text: `Payment-ID: ${payment.id} · Läuft bis ${new Date(payment.timeout_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` })
     .setTimestamp();
@@ -144,7 +144,7 @@ export async function buildPaymentInstructionEmbed(payment) {
 
 /**
  * Validiert eine erkannte Zahlung aus dem Minecraft-Chat.
- * Prueft: Sender = verifizierter IGN, Empfaenger = TeamBank, Betrag >= erforderlich.
+ * Prüft: Sender = verifizierter IGN, Empfänger = TeamBank, Betrag >= erforderlich.
  * @param {import('discord.js').Client} client
  * @param {string} senderIgn
  * @param {number} amount
@@ -156,11 +156,11 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
   // Spieler finden
   const user = db.findUserByIgn(senderIgn);
   if (!user || !user.discord_id) {
-    logger.info(`[Payment] Kein verifizierter Spieler fuer IGN: ${senderIgn}`);
+    logger.info(`[Payment] Kein verifizierter Spieler für IGN: ${senderIgn}`);
     return { ok: false, error: 'UNKNOWN_PLAYER' };
   }
 
-  // Status pruefen
+  // Status prüfen
   if (user.status !== PlayerStatus.WAITING_PAYMENT) {
     logger.info(`[Payment] Spieler ${senderIgn} hat Status ${user.status}, erwartet: waiting_payment`);
     return { ok: false, error: 'NOT_WAITING' };
@@ -169,7 +169,7 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
   // Aktives Payment finden
   const payment = db.findActivePayment(user.discord_id);
   if (!payment) {
-    logger.info(`[Payment] Kein aktives Payment fuer ${senderIgn}`);
+    logger.info(`[Payment] Kein aktives Payment für ${senderIgn}`);
     return { ok: false, error: 'NO_ACTIVE_PAYMENT' };
   }
 
@@ -178,7 +178,7 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
   }
 
   if (recipient && recipient.toLowerCase() !== payment.recipient.toLowerCase()) {
-    logger.info(`[Payment] Falscher Empfaenger: ${recipient} (erwartet: ${payment.recipient})`);
+    logger.info(`[Payment] Falscher Empfänger: ${recipient} (erwartet: ${payment.recipient})`);
     return { ok: false, error: 'WRONG_RECIPIENT', recipient, requiredRecipient: payment.recipient };
   }
 
@@ -188,7 +188,7 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
     return { ok: false, error: 'WRONG_AMOUNT', amount, requiredAmount: payment.amount };
   }
 
-  // Payment als bestaetigt markieren
+  // Payment als bestätigt markieren
   const confirmed = db.updatePaymentStatus(payment.id, PaymentStatus.CONFIRMED, {
     confirmedAt: new Date().toISOString(),
     chatMessage,
@@ -197,11 +197,11 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
   // Status des Spielers aktualisieren
   db.upsertUser({
     discord_id: user.discord_id,
-    status: PlayerStatus.VERIFIED, // Zurueck auf verified, Team-Invite folgt
+    status: PlayerStatus.VERIFIED, // Zurück auf verified, Team-Invite folgt
     team: null,
   });
 
-  logger.info(`[Payment] Zahlung bestaetigt: ${senderIgn} hat $${amount} an ${recipient} ueberwiesen.`);
+  logger.info(`[Payment] Zahlung bestätigt: ${senderIgn} hat $${amount} an ${recipient} überwiesen.`);
 
   return { ok: true, payment: confirmed, user };
 }
@@ -240,7 +240,7 @@ export function registerPendingPaymentConfirm(client, user, payment, { alreadyAn
   const old = pendingPaymentConfirms.get(user.discord_id);
   if (old?.timer) clearTimeout(old.timer);
   // Erst checken, dann das Embed: Die Erfolgsmeldung kommt erst, wenn der
-  // Server die Einladung bestaetigt (TEAM_INVITED) oder nach 15s ohne
+  // Server die Einladung bestätigt (TEAM_INVITED) oder nach 15s ohne
   // Antwort (Fallback). Kommt vorher ein Fehler, gibt es nur die EINE
   // Fehlernachricht und niemals ein Erfolgs-Embed davor.
   const entry = { payment, user, timer: null, client, channelId, messageId, announced: alreadyAnnounced };
@@ -256,8 +256,8 @@ export function registerPendingPaymentConfirm(client, user, payment, { alreadyAn
       if (!discordUser) return;
       const dm = await discordUser.createDM();
       const sent = await dm.send({ embeds: [await buildPaymentConfirmedEmbed(payment)] });
-      // Nachricht merken, damit spaetere Uebergaenge (Fehler/Join) sie
-      // loeschen koennen statt ein zweites "Zahlung erkannt" zu schicken.
+      // Nachricht merken, damit spätere Uebergaenge (Fehler/Join) sie
+      // löschen können statt ein zweites "Zahlung erkannt" zu schicken.
       entry.channelId = dm.id;
       entry.messageId = sent.id;
     } catch (err) {
@@ -269,7 +269,7 @@ export function registerPendingPaymentConfirm(client, user, payment, { alreadyAn
   return entry;
 }
 
-/** Holt und loescht eine ausstehende Payment-Bestaetigung (fuer Invite-Fehler/Join). */
+/** Holt und löscht eine ausstehende Payment-Bestätigung (für Invite-Fehler/Join). */
 export function consumePendingPaymentConfirm(discordId) {
   const entry = pendingPaymentConfirms.get(discordId);
   if (!entry) return null;
@@ -280,8 +280,8 @@ export function consumePendingPaymentConfirm(discordId) {
 
 /**
  * Sendet das "Zahlung erkannt"-Embed sofort, weil der Server die Einladung
- * bestaetigt hat. Bricht den Fallback-Timer ab, behaelt den Eintrag aber
- * fuer spaetere Uebergaenge (Fehler/Join loeschen dann genau diese Nachricht).
+ * bestätigt hat. Bricht den Fallback-Timer ab, behaelt den Eintrag aber
+ * für spätere Uebergaenge (Fehler/Join löschen dann genau diese Nachricht).
  * @returns {Promise<boolean>} true wenn gesendet
  */
 export async function announcePaymentConfirmed(discordId) {
@@ -301,13 +301,13 @@ export async function announcePaymentConfirmed(discordId) {
     entry.messageId = sent.id;
     return true;
   } catch (err) {
-    logger.warn(`[Payment] Konnte Bestaetigungs-DM nicht senden: ${err.message}`);
+    logger.warn(`[Payment] Konnte Bestätigungs-DM nicht senden: ${err.message}`);
     return false;
   }
 }
 
 /**
- * Loescht die angezeigte "Zahlung erkannt"-Nachricht, falls bekannt.
+ * Löscht die angezeigte "Zahlung erkannt"-Nachricht, falls bekannt.
  * Damit steht zu jedem Zeitpunkt nur EINE davon in den DMs.
  */
 export async function deleteAnnouncedPaymentMessage(client, entry) {
@@ -336,7 +336,7 @@ export async function confirmPaymentAndInviteTeam(client, user, payment) {
 
   await sendLogEmbed(client, {
     category: LogCategory.PAYMENT,
-    title: 'Zahlung bestaetigt',
+    title: 'Zahlung bestätigt',
       description: `<@${user.discord_id}> (${user.ign}) hat **$${amount.toLocaleString('de-DE')}** gezahlt. Team-Invite gesendet.`,
     color: 'success',
   });
@@ -360,7 +360,7 @@ export async function sendPaymentFailedEmbed(client, discordId, reason, extra = 
     case 'WRONG_AMOUNT': {
       const required = (extra.requiredAmount || configService.get('payment', {}).amount || 250000).toLocaleString('de-DE');
       const got = (extra.amount || 0).toLocaleString('de-DE');
-      description = `Du hast **$${got}** ueberwiesen, aber erforderlich sind **$${required}**.\n\nUeberweise den richtigen Betrag, um fortzufahren.`;
+      description = `Du hast **$${got}** überwiesen, aber erforderlich sind **$${required}**.\n\nÜberweise den richtigen Betrag, um fortzufahren.`;
       break;
     }
     case 'WRONG_RECIPIENT':
@@ -429,7 +429,7 @@ export async function sendPaymentTimeoutEmbed(client, discordId) {
 }
 
 /**
- * Prueft und setzt abgelaufene Payments auf Timeout.
+ * Prüft und setzt abgelaufene Payments auf Timeout.
  * @param {import('discord.js').Client} client
  */
 export async function checkPaymentTimeouts(client) {
@@ -437,7 +437,7 @@ export async function checkPaymentTimeouts(client) {
   for (const payment of expired) {
     // Spieler-Status zuruecksetzen – aber nur wenn er noch auf DIESE Zahlung
     // wartet. Sonst wuerde ein entlinkter User faelschlich auf VERIFIED oder
-    // sogar ein Team-Mitglied zurueckgesetzt.
+    // sogar ein Team-Mitglied zurückgesetzt.
     const linkedUser = db.findUserByDiscord(payment.discord_id);
     if (linkedUser && linkedUser.status === PlayerStatus.WAITING_PAYMENT) {
       db.upsertUser({
@@ -455,7 +455,7 @@ export async function checkPaymentTimeouts(client) {
       color: 'warning',
     });
 
-    logger.info(`[Payment] Timeout fuer ${payment.ign}: Zahlung abgelaufen.`);
+    logger.info(`[Payment] Timeout für ${payment.ign}: Zahlung abgelaufen.`);
   }
 
   if (expired.length > 0) {
@@ -466,17 +466,17 @@ export async function checkPaymentTimeouts(client) {
 // ---------------------------------------------------------------------------
 // Automatischer Refund nach fehlgeschlagener Team-Einladung
 // ---------------------------------------------------------------------------
-// Sicherheitsmodell (kein Exploit moeglich):
-// - Es gibt KEINEN User-Command fuer Refunds. Nur dieser interne Timer.
-// - Empfaenger und Betrag kommen AUSSCHLIESSLICH aus der bestaetigten
+// Sicherheitsmodell (kein Exploit möglich):
+// - Es gibt KEINEN User-Command für Refunds. Nur dieser interne Timer.
+// - Empfänger und Betrag kommen AUSSCHLIESSLICH aus der bestätigten
 //   DB-Zeile (payment.ign, payment.amount), nie aus Chat oder User-Input.
 // - Der IGN wird erneut per sanitizeIgn geprueft, der Betrag muss eine
 //   positive ganze Zahl sein.
 // - claimPaymentForRefund() markiert die Zeile atomar (nur wenn noch
 //   'confirmed'). Nur wer den Claim gewinnt, darf zahlen -> kein Doppel-Refund.
 // - Vor dem Senden wird geprueft: User ist NICHT im Team, Bot ist online.
-// - Schlaegt das Senden fehl, wird der Claim zurueckgegeben (kein Geld
-//   verloren, kein Status verbrannt) und spaeter erneut versucht.
+// - Schlaegt das Senden fehl, wird der Claim zurückgegeben (kein Geld
+//   verloren, kein Status verbrannt) und später erneut versucht.
 
 const pendingRefunds = new Map();
 
@@ -497,7 +497,7 @@ export function scheduleRefundAfterInviteError(client, discordId, payment) {
     attempts: 0,
     timer: setTimeout(() => executeRefund(client, discordId, payment.id, 0), REFUND_GRACE_MS),
   });
-  logger.info(`[Payment] Refund-Timer gestartet fuer Payment #${payment.id} (${payment.ign}, $${payment.amount}) – 10 Minuten.`);
+  logger.info(`[Payment] Refund-Timer gestartet für Payment #${payment.id} (${payment.ign}, $${payment.amount}) – 10 Minuten.`);
 }
 
 /** Storniert einen geplanten Refund (Retry, Team-Join, Neuzahlung). */
@@ -508,7 +508,7 @@ export function cancelRefund(discordId) {
 }
 
 /**
- * Fuehrt den Refund aus: /pay <verifizierter IGN> <bestaetigter Betrag>.
+ * Führt den Refund aus: /pay <verifizierter IGN> <bestätigter Betrag>.
  * Alle Guards werden zum Ausfuehrzeitpunkt erneut aus der DB geprueft.
  */
 async function executeRefund(client, discordId, paymentId, attempts) {
@@ -519,7 +519,7 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     logger.warn(`[Refund] Payment #${paymentId} nicht gefunden – kein Refund.`);
     return;
   }
-  // Nur bestaetigte (also wirklich erhaltene) Zahlungen duerfen refunden.
+  // Nur bestätigte (also wirklich erhaltene) Zahlungen dürfen refunden.
   if (payment.status === PaymentStatus.REFUNDED || payment.status === PaymentStatus.REFUNDING) {
     logger.info(`[Refund] Payment #${paymentId} bereits ${payment.status} – kein Doppel-Refund.`);
     return;
@@ -534,14 +534,14 @@ async function executeRefund(client, discordId, paymentId, attempts) {
   }
 
   // Altersgrenze: Nur Zahlungen der letzten 24h automatisch refunden.
-  // Aeltere (z.B. Team wieder verlassen) sind Faelle fuer Admin-Review.
+  // Aeltere (z.B. Team wieder verlassen) sind Faelle für Admin-Review.
   const confirmedAt = payment.confirmed_at ? new Date(payment.confirmed_at).getTime() : 0;
   if (!confirmedAt || Date.now() - confirmedAt > 24 * 60 * 60 * 1000) {
-    logger.warn(`[Refund] Payment #${paymentId} ist aelter als 24h – kein Auto-Refund, Admin pruefen.`);
+    logger.warn(`[Refund] Payment #${paymentId} ist aelter als 24h – kein Auto-Refund, Admin prüfen.`);
     await sendLogEmbed(client, {
       category: LogCategory.PAYMENT,
-      title: 'Refund manuell pruefen',
-      description: `Payment #${paymentId} (**${payment.ign}**, $${Number(payment.amount).toLocaleString('de-DE')}) ist bestaetigt aber aelter als 24h. Bitte manuell pruefen statt automatisch zu zahlen.`,
+      title: 'Refund manuell prüfen',
+      description: `Payment #${paymentId} (**${payment.ign}**, $${Number(payment.amount).toLocaleString('de-DE')}) ist bestätigt aber aelter als 24h. Bitte manuell prüfen statt automatisch zu zahlen.`,
       color: 'warning',
     });
     return;
@@ -554,21 +554,21 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     await sendLogEmbed(client, {
       category: LogCategory.PAYMENT,
       title: 'Refund uebersprungen',
-      description: `**${payment.ign}** ist im Team – Payment #${payment.id} bleibt bestaetigt (manuell pruefen).`,
+      description: `**${payment.ign}** ist im Team – Payment #${payment.id} bleibt bestätigt (manuell prüfen).`,
       color: 'warning',
     });
     return;
   }
 
-  // Empfaenger strikt aus der DB-Zeile, erneut validiert. NIEMALS aus Chat/Input.
+  // Empfänger strikt aus der DB-Zeile, erneut validiert. NIEMALS aus Chat/Input.
   const cleanIgn = sanitizeIgn(payment.ign);
   const amount = Number(payment.amount);
   if (!cleanIgn || !Number.isInteger(amount) || amount <= 0) {
-    logger.error(`[Refund] Ungueltige Refund-Daten bei Payment #${paymentId} – ABBRUCH, Admin pruefen.`);
+    logger.error(`[Refund] Ungültige Refund-Daten bei Payment #${paymentId} – ABBRUCH, Admin prüfen.`);
     await sendLogEmbed(client, {
       category: LogCategory.PAYMENT,
       title: 'Refund blockiert',
-      description: `Payment #${paymentId} hat ungueltige Daten (IGN/Betrag). Manuell pruefen – NICHT automatisch gezahlt.`,
+      description: `Payment #${paymentId} hat ungültige Daten (IGN/Betrag). Manuell prüfen – NICHT automatisch gezahlt.`,
       color: 'error',
     });
     return;
@@ -580,9 +580,9 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     return;
   }
 
-  // Bot-Verbindung pruefen (dynamischer Import: kein Modul-Zyklus).
-  // sendCommand reiht nur ein – ob es wirklich rausging, prueft die
-  // Versandkontrolle unten (Kick beim Senden ist jederzeit moeglich).
+  // Bot-Verbindung prüfen (dynamischer Import: kein Modul-Zyklus).
+  // sendCommand reiht nur ein – ob es wirklich rausging, prüft die
+  // Versandkontrolle unten (Kick beim Senden ist jederzeit möglich).
   let sent = false;
   let sendTime = 0;
   try {
@@ -596,7 +596,7 @@ async function executeRefund(client, discordId, paymentId, attempts) {
   }
 
   if (!sent) {
-    // NICHT als refunden markieren: Claim zurueckgeben und spaeter erneut versuchen.
+    // NICHT als refunden markieren: Claim zurückgeben und später erneut versuchen.
     db.releaseRefundClaim(paymentId);
     const nextAttempts = attempts + 1;
     if (nextAttempts < REFUND_MAX_ATTEMPTS) {
@@ -611,7 +611,7 @@ async function executeRefund(client, discordId, paymentId, attempts) {
       await sendLogEmbed(client, {
         category: LogCategory.PAYMENT,
         title: 'Refund fehlgeschlagen',
-        description: `Bot offline – **$${amount.toLocaleString('de-DE')}** an **${cleanIgn}** (Payment #${paymentId}) bitte MANUELL per \`/pay ${cleanIgn} ${amount}\` zurueckzahlen.`,
+        description: `Bot offline – **$${amount.toLocaleString('de-DE')}** an **${cleanIgn}** (Payment #${paymentId}) bitte MANUELL per \`/pay ${cleanIgn} ${amount}\` zurückzahlen.`,
         color: 'error',
       });
     }
@@ -625,11 +625,11 @@ async function executeRefund(client, discordId, paymentId, attempts) {
   try {
     const { bridgeInstance } = await import('../minecraft/bridge.js');
     if (!bridgeInstance?.isConnected || (bridgeInstance.lastDisconnectAt || 0) >= sendTime) {
-      logger.error(`[Refund] Kick nach Refund-Versand (Payment #${paymentId}) – manuell pruefen, NICHT erneut senden.`);
+      logger.error(`[Refund] Kick nach Refund-Versand (Payment #${paymentId}) – manuell prüfen, NICHT erneut senden.`);
       await sendLogEmbed(client, {
         category: LogCategory.PAYMENT,
-        title: 'Refund unklar – manuell pruefen',
-        description: `Bot wurde nach \`/pay ${cleanIgn} ${amount}\` (Payment #${paymentId}) getrennt. Unklar ob es ankam – bitte Kontostand pruefen und ggf. MANUELL nachzahlen. KEIN Auto-Retry (Doppel-Pay vermeiden).`,
+        title: 'Refund unklar – manuell prüfen',
+        description: `Bot wurde nach \`/pay ${cleanIgn} ${amount}\` (Payment #${paymentId}) getrennt. Unklar ob es ankam – bitte Kontostand prüfen und ggf. MANUELL nachzahlen. KEIN Auto-Retry (Doppel-Pay vermeiden).`,
         color: 'error',
       });
       return;
@@ -649,11 +649,11 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     return;
   }
   if (freshUser && freshUser.status === PlayerStatus.TEAM) {
-    logger.error(`[Refund] User ${cleanIgn} ist waehrend Refund ins Team gekommen (Payment #${paymentId}) – manuell pruefen.`);
+    logger.error(`[Refund] User ${cleanIgn} ist waehrend Refund ins Team gekommen (Payment #${paymentId}) – manuell prüfen.`);
     await sendLogEmbed(client, {
       category: LogCategory.PAYMENT,
-      title: 'Refund + Join gleichzeitig – manuell pruefen',
-      description: `**${cleanIgn}** ist waehrend des Refunds (Payment #${paymentId}, $${amount.toLocaleString('de-DE')}) ins Team gekommen. Bitte pruefen ob Geld rausging – ggf. zurueckfordern oder behalten lassen. Status bleibt zur Klaerung auf 'refunding'.`,
+      title: 'Refund + Join gleichzeitig – manuell prüfen',
+      description: `**${cleanIgn}** ist waehrend des Refunds (Payment #${paymentId}, $${amount.toLocaleString('de-DE')}) ins Team gekommen. Bitte prüfen ob Geld rausging – ggf. zurückfordern oder behalten lassen. Status bleibt zur Klaerung auf 'refunding'.`,
       color: 'error',
     });
     return;
@@ -664,7 +664,7 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     db.upsertUser({ discord_id: discordId, status: PlayerStatus.VERIFIED });
   }
 
-  logger.info(`[Refund] $${amount} an ${cleanIgn} zurueckgezahlt (Payment #${paymentId}).`);
+  logger.info(`[Refund] $${amount} an ${cleanIgn} zurückgezahlt (Payment #${paymentId}).`);
 
   try {
     const { EmbedBuilder } = await import('discord.js');
@@ -673,11 +673,11 @@ async function executeRefund(client, discordId, paymentId, attempts) {
       const dm = await discordUser.createDM();
       const embed = new EmbedBuilder()
         .setColor(0xFEE75C)
-        .setTitle('Vorgang abgebrochen – Geld zurueckgezahlt')
+        .setTitle('Vorgang abgebrochen – Geld zurückgezahlt')
         .setDescription(
           `Die Team-Einladung hat nicht geklappt und du hast nichts weiter unternommen.\n\n` +
-          `**$${amount.toLocaleString('de-DE')}** wurden an **${cleanIgn}** zurueckgezahlt.\n\n` +
-          `Du kannst jederzeit ueber den Button im Server neu starten.`,
+          `**$${amount.toLocaleString('de-DE')}** wurden an **${cleanIgn}** zurückgezahlt.\n\n` +
+          `Du kannst jederzeit über den Button im Server neu starten.`,
         )
         .setTimestamp();
       await dm.send({ embeds: [embed] });
@@ -688,8 +688,8 @@ async function executeRefund(client, discordId, paymentId, attempts) {
 
   await sendLogEmbed(client, {
     category: LogCategory.PAYMENT,
-    title: 'Zahlung zurueckgezahlt',
-    description: `**$${amount.toLocaleString('de-DE')}** an **${cleanIgn}** zurueckgezahlt (Payment #${paymentId}, <@${discordId}>). Befehl: \`/pay ${cleanIgn} ${amount}\``,
+    title: 'Zahlung zurückgezahlt',
+    description: `**$${amount.toLocaleString('de-DE')}** an **${cleanIgn}** zurückgezahlt (Payment #${paymentId}, <@${discordId}>). Befehl: \`/pay ${cleanIgn} ${amount}\``,
     color: 'warning',
   });
 
@@ -718,7 +718,7 @@ export async function reconcileStaleRefunds(client) {
     await sendLogEmbed(client, {
       category: LogCategory.PAYMENT,
       title: 'Altes Payment gefunden',
-      description: `Payment #${payment.id} (**${payment.ign}**, $${payment.amount.toLocaleString('de-DE')}) war bestaetigt aber nie abgeschlossen. Refund startet in 2 Minuten, falls kein Join erfolgt.`,
+      description: `Payment #${payment.id} (**${payment.ign}**, $${payment.amount.toLocaleString('de-DE')}) war bestätigt aber nie abgeschlossen. Refund startet in 2 Minuten, falls kein Join erfolgt.`,
       color: 'warning',
     });
   }

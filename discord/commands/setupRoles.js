@@ -7,19 +7,19 @@ import configService from '../../server/config.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-roles')
-    .setDescription('Zeigt oder setzt die Rollen fuer Verified, Team, Join und Admin.')
+    .setDescription('Zeigt oder setzt die Rollen für Verified, Team, Join und Admin.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addRoleOption((opt) =>
-      opt.setName('verified-rolle').setDescription('Rolle fuer verifizierte Spieler'),
+      opt.setName('verified-rolle').setDescription('Rolle für verifizierte Spieler'),
     )
     .addRoleOption((opt) =>
-      opt.setName('team-rolle').setDescription('Rolle fuer Team-Mitglieder'),
+      opt.setName('team-rolle').setDescription('Rolle für Team-Mitglieder'),
     )
     .addRoleOption((opt) =>
-      opt.setName('join-rolle').setDescription('Rolle fuer neue Spieler'),
+      opt.setName('join-rolle').setDescription('Rolle für neue Spieler'),
     )
     .addRoleOption((opt) =>
-      opt.setName('admin-rolle').setDescription('Rolle fuer Administratoren'),
+      opt.setName('admin-rolle').setDescription('Rolle für Administratoren'),
     ),
 
   async execute(interaction) {

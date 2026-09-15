@@ -1,4 +1,4 @@
-// Variable: /help - Zeigt eine Uebersicht aller verfuegbaren Befehle.
+// Variable: /help - Zeigt eine Übersicht aller verfuegbaren Befehle.
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildEmbed } from '../helpers.js';
@@ -6,7 +6,7 @@ import { buildEmbed } from '../helpers.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Zeigt eine Uebersicht aller verfuegbaren Befehle.'),
+    .setDescription('Zeigt eine Übersicht aller verfuegbaren Befehle.'),
 
   async execute(interaction) {
     const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
@@ -22,7 +22,7 @@ export default {
       { name: '/setup-dashboard', desc: 'Sendet den Dashboard-Link' },
       { name: '/setup-logs', desc: 'Zeigt oder setzt den Log-Kanal' },
       { name: '/setup-roles', desc: 'Zeigt oder setzt die Rollen' },
-      { name: '/setup-config', desc: 'Zeigt oder aendert Bot-Einstellungen' },
+      { name: '/setup-config', desc: 'Zeigt oder ändert Bot-Einstellungen' },
       { name: '/verify-user', desc: 'Verifizierung erzwingen oder entfernen' },
       { name: '/team-invite', desc: 'Team-Einladung im Spiel senden' },
       { name: '/team-remove', desc: 'Spieler aus dem Team entfernen' },
@@ -33,7 +33,7 @@ export default {
       { name: '/team-setowner', desc: 'Owner eines Teams setzen/entfernen' },
       { name: '/player-info', desc: 'Spielerinformationen anzeigen' },
       { name: '/player-unlink', desc: 'Verknuepfung entfernen' },
-      { name: '/setuppatterns', desc: 'Minecraft-Chat-Patterns anzeigen oder aendern' },
+      { name: '/setuppatterns', desc: 'Minecraft-Chat-Patterns anzeigen oder ändern' },
       { name: '/reload-config', desc: 'Konfiguration neu laden' },
       { name: '/status', desc: 'Bot-Status (detailliert)' },
     ];
@@ -51,7 +51,7 @@ export default {
 
     const embed = buildEmbed({
       title: '📖 Team DICKS - Hilfe',
-      description: 'Hier ist eine Uebersicht aller verfuegbaren Befehle.',
+      description: 'Hier ist eine Übersicht aller verfuegbaren Befehle.',
       color: 'primary',
       fields,
     });

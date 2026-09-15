@@ -1,12 +1,12 @@
 // Variable: Team-Panel Embed und Buttons.
-// Erstellt die interaktive Benutzeroberflaeche fuer /setup team.
+// Erstellt die interaktive Benutzeroberflaeche für /setup team.
 
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import configService from '../../server/config.js';
 import { hexToDecimal } from '../../shared/types.js';
 
 /**
- * Erstellt die Embed-Nachricht fuer das Team-Panel.
+ * Erstellt die Embed-Nachricht für das Team-Panel.
  * @returns {EmbedBuilder}
  */
 export function buildTeamPanelEmbed() {

@@ -1,5 +1,5 @@
 // Variable: Modal-Dialoge und deren Auswertung.
-// Verwaltet die Popups fuer die Eingabe des Minecraft-Namens bei Verifizierung und Team-Beitritt.
+// Verwaltet die Popups für die Eingabe des Minecraft-Namens bei Verifizierung und Team-Beitritt.
 
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { startVerification } from '../verifyService.js';
@@ -18,7 +18,7 @@ export async function showVerifyModal(interaction) {
     await interaction.reply({
       embeds: [errorEmbed(
         'Minecraft-Server offline',
-        'Der Bot ist gerade nicht auf dem Minecraft-Server. Bitte versuche es spaeter erneut.',
+        'Der Bot ist gerade nicht auf dem Minecraft-Server. Bitte versuche es später erneut.',
       )],
       ephemeral: true,
     });
@@ -52,7 +52,7 @@ export async function showTeamModal(interaction) {
     await interaction.reply({
       embeds: [errorEmbed(
         'Minecraft-Server offline',
-        'Der Bot ist gerade nicht auf dem Minecraft-Server. Bitte versuche es spaeter erneut.',
+        'Der Bot ist gerade nicht auf dem Minecraft-Server. Bitte versuche es später erneut.',
       )],
       ephemeral: true,
     });
@@ -65,7 +65,7 @@ export async function showTeamModal(interaction) {
 
   const ignInput = new TextInputBuilder()
     .setCustomId('input_ign')
-    .setLabel('Bestaetige deinen Minecraft-Namen (IGN)')
+    .setLabel('Bestätige deinen Minecraft-Namen (IGN)')
     .setStyle(TextInputStyle.Short)
     .setMinLength(3)
     .setMaxLength(16)
@@ -100,17 +100,17 @@ export async function handleVerifyModalSubmit(interaction, client) {
     title: 'Dein Verifizierungs-Code',
     description:
       `Hallo <@${interaction.user.id}>!\n\n` +
-      `Oeffne Minecraft, verbinde dich mit dem Server und fuehre diesen Befehl aus:\n\n` +
+      `Öffne Minecraft, verbinde dich mit dem Server und führe diesen Befehl aus:\n\n` +
       '```\n' +
       `/msg ${botName} ${result.code}\n` +
       '```\n' +
-      `Gueltig fuer 5 Minuten.`,
+      `Gültig für 5 Minuten.`,
     color: 'primary',
   });
 
   const reply = await interaction.editReply({ embeds: [embed] });
 
-  // Message-ID speichern damit die Bridge diese spaeter bearbeiten kann
+  // Message-ID speichern damit die Bridge diese später bearbeiten kann
   if (reply && reply.id && result.record) {
     updateCodeMessageId(result.record.id, reply.id);
   }
@@ -136,7 +136,7 @@ export async function handleTeamModalSubmit(interaction, client) {
 
   const embed = successEmbed(
     'Team-Einladung gesendet!',
-    `Es wurde eine Team-Einladung fuer **${result.ign}** ausgeloest.\n\n` +
+    `Es wurde eine Team-Einladung für **${result.ign}** ausgeloest.\n\n` +
     `Bitte nimm die Einladung im Spiel an (` + '`/team accept`' + `), um den Prozess abzuschliessen!`,
   );
 

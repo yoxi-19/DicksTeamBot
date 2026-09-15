@@ -61,7 +61,7 @@ export default function PlayersPage() {
   };
 
   const filteredPlayers = useMemo(() => {
-    // Die Datenbank kennt nur verknuepfte Spieler. Fuer die Rollenansicht
+    // Die Datenbank kennt nur verknuepfte Spieler. Für die Rollenansicht
     // werden deshalb auch reine Discord-Mitglieder ergaenzt.
     if (discordMembers === null) return [...(players || [])];
 
@@ -288,7 +288,7 @@ export default function PlayersPage() {
                           <button
                             onClick={() => handleUnlink(player)}
                             disabled={actionId === player.id}
-                            title="Verknuepfung entfernen (Rollen + Nickname werden zurueckgesetzt)"
+                            title="Verknuepfung entfernen (Rollen + Nickname werden zurückgesetzt)"
                             className="text-[11px] px-3 py-1 rounded-md border border-red-500/25 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                           >
                             {actionId === player.id ? '...' : 'Entverifizieren'}

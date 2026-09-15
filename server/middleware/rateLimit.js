@@ -1,5 +1,5 @@
 // Variable: Rate-Limit-Middleware.
-// Einfache In-Memory Rate-Limitierung fuer API-Endpoints.
+// Einfache In-Memory Rate-Limitierung für API-Endpoints.
 
 const buckets = new Map();
 
