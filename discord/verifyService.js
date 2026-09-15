@@ -90,7 +90,7 @@ export async function completeVerification(client, code, submittedIgn) {
   const guild = await resolveGuild(client);
   if (guild) {
     await syncNickname(guild, discordId, record.ign);
-    await grantRole(guild, discordId, 'roleVerified');
+    // Keine Verified-Rolle hier: Die gibt es erst mit dem Team-Beitritt.
     await removeRole(guild, discordId, 'roleJoin');
   }
 

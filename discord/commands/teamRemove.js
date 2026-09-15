@@ -45,6 +45,7 @@ export default {
     const guild = interaction.guild;
     if (guild) {
       await removeRole(guild, targetUser.id, 'roleTeam');
+      await removeRole(guild, targetUser.id, 'roleVerified');
       await removeRankRoles(guild, targetUser.id);
     }
     await clearOwnerSlots(interaction.client, targetUser.id);

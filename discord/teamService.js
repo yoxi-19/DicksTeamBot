@@ -367,11 +367,14 @@ export async function syncAllMembers(client) {
           logger.info(`[Team] Fehlenden Rang fuer ${user.ign || user.discord_id} auf Team ${rank} repariert.`);
         }
         await grantRole(guild, user.discord_id, 'roleTeam');
+        await grantRole(guild, user.discord_id, 'roleVerified');
         await syncRankRoles(guild, user.discord_id, rank);
         await syncOwnerRoles(guild, user.discord_id);
         await removeRole(guild, user.discord_id, 'roleJoin');
       } else if (user.status === PlayerStatus.VERIFIED) {
-        await grantRole(guild, user.discord_id, 'roleVerified');
+        // Verifiziert ohne Team: keine Team-Rollen und auch keine
+        // Verified-Rolle (die gibt es erst mit dem Team-Beitritt).
+        await removeRole(guild, user.discord_id, 'roleVerified');
         await removeRole(guild, user.discord_id, 'roleTeam');
         await removeRankRoles(guild, user.discord_id);
         await removeOwnerRoles(guild, user.discord_id);
@@ -517,6 +520,7 @@ export async function handleTeamJoined(client, ign) {
   if (guild) {
     await syncNickname(guild, user.discord_id, cleanIgn);
     await grantRole(guild, user.discord_id, 'roleTeam');
+    await grantRole(guild, user.discord_id, 'roleVerified');
     await syncRankRoles(guild, user.discord_id, startRank);
     await removeRole(guild, user.discord_id, 'roleJoin');
   }
@@ -574,6 +578,7 @@ export async function handleTeamLeft(client, ign) {
   const guild = await resolveGuild(client);
   if (guild) {
     await removeRole(guild, user.discord_id, 'roleTeam');
+    await removeRole(guild, user.discord_id, 'roleVerified');
     await removeRankRoles(guild, user.discord_id);
   }
   await clearOwnerSlots(client, user.discord_id);
@@ -624,6 +629,7 @@ export async function reviewApplication(client, applicationId, decision, reviewe
       if (guild) {
         await syncNickname(guild, app.discord_id, app.ign);
         await grantRole(guild, app.discord_id, 'roleTeam');
+        await grantRole(guild, app.discord_id, 'roleVerified');
         await syncRankRoles(guild, app.discord_id, startRank);
         await removeRole(guild, app.discord_id, 'roleJoin');
       }
