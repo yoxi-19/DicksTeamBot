@@ -40,13 +40,19 @@ export function buildEmbed({ title, description, color = 'primary', fields = [],
 export async function syncNickname(guild, discordId, ign) {
   try {
     const member = await guild.members.fetch(discordId);
-    if (!member) return false;
-    if (member.nickname !== ign) {
-      await member.setNickname(ign, 'IGN-Synchronisierung');
+    if (!member) {
+      logger.warn(`[Discord] Nickname-Sync: Member ${discordId} nicht gefunden.`);
+      return false;
     }
+    const nickname = ign?.trim() || null;
+    if (member.nickname === nickname || (nickname && member.user.username === nickname)) {
+      return true; // Nickname stimmt schon
+    }
+    await member.setNickname(nickname, nickname ? 'IGN-Synchronisierung' : 'Verifizierung entfernt');
+    logger.info(`[Discord] Nickname geaendert: ${member.user.tag} -> ${nickname || 'zurueckgesetzt'}`);
     return true;
   } catch (err) {
-    logger.warn(`[Discord] Nickname-Sync fehlgeschlagen: ${err.message}`);
+    logger.warn(`[Discord] Nickname-Sync fehlgeschlagen fuer ${discordId}: ${err.message}`);
     return false;
   }
 }
@@ -98,6 +104,52 @@ export async function removeRole(guild, discordId, roleKey) {
 }
 
 /**
+ * Gibt einem Mitglied eine Rolle per direkter Rollen-ID.
+ * @param {import('discord.js').Guild} guild
+ * @param {string} discordId
+ * @param {string} roleId
+ * @param {string} reason
+ * @returns {Promise<boolean>}
+ */
+export async function grantRoleById(guild, discordId, roleId, reason = 'Automatische Rollenvergabe') {
+  if (!roleId) return false;
+  try {
+    const member = await guild.members.fetch(discordId);
+    const role = await guild.roles.fetch(roleId);
+    if (member && role) {
+      await member.roles.add(role, reason);
+      return true;
+    }
+  } catch (err) {
+    logger.warn(`[Discord] Rolle ${roleId} konnte nicht vergeben werden: ${err.message}`);
+  }
+  return false;
+}
+
+/**
+ * Entfernt eine Rolle per direkter Rollen-ID.
+ * @param {import('discord.js').Guild} guild
+ * @param {string} discordId
+ * @param {string} roleId
+ * @param {string} reason
+ * @returns {Promise<boolean>}
+ */
+export async function removeRoleById(guild, discordId, roleId, reason = 'Automatische Rollenentfernung') {
+  if (!roleId) return false;
+  try {
+    const member = await guild.members.fetch(discordId);
+    const role = await guild.roles.fetch(roleId);
+    if (member && role) {
+      await member.roles.remove(role, reason);
+      return true;
+    }
+  } catch (err) {
+    logger.warn(`[Discord] Rolle ${roleId} konnte nicht entfernt werden: ${err.message}`);
+  }
+  return false;
+}
+
+/**
  * Prüft, ob ein Nutzer eine Admin-Rolle besitzt.
  * @param {import('discord.js').GuildMember} member
  * @returns {boolean}
@@ -120,7 +172,11 @@ export async function sendLogEmbed(client, { category, title, description = null
   const logEntry = db.addLog({ category, title, description });
   eventBus.emitToDashboard('logUpdate', logEntry);
 
-  const channelId = configService.getChannelId('channelLogs');
+  // Channel-Routing: Join/Leave -> channelJoinLogs, Rest -> channelLogs
+  const isJoinLeave = category === LogCategory.JOIN_LEAVE;
+  const channelId = isJoinLeave
+    ? configService.getChannelId('channelJoinLogs')
+    : configService.getChannelId('channelLogs');
   if (!channelId) return logEntry;
   try {
     const channel = await client.channels.fetch(channelId);

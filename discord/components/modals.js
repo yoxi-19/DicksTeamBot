@@ -6,12 +6,25 @@ import { startVerification } from '../verifyService.js';
 import { requestJoin } from '../teamService.js';
 import { buildEmbed, errorEmbed, successEmbed } from '../helpers.js';
 import configService from '../../server/config.js';
+import { bridgeInstance } from '../../minecraft/bridge.js';
+import { updateCodeMessageId } from '../../database/index.js';
 
 /**
  * Zeigt das Verifizierungs-Modal an.
  * @param {import('discord.js').ButtonInteraction} interaction
  */
 export async function showVerifyModal(interaction) {
+  if (!bridgeInstance || !bridgeInstance.isConnected) {
+    await interaction.reply({
+      embeds: [errorEmbed(
+        'Minecraft-Server offline',
+        'Der Bot ist gerade nicht auf dem Minecraft-Server. Bitte versuche es spaeter erneut.',
+      )],
+      ephemeral: true,
+    });
+    return;
+  }
+
   const modal = new ModalBuilder()
     .setCustomId('modal_verify')
     .setTitle('Minecraft-Konto verbinden');
@@ -20,7 +33,6 @@ export async function showVerifyModal(interaction) {
     .setCustomId('input_ign')
     .setLabel('Dein Minecraft-Name (IGN)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('z.B. Steve123')
     .setMinLength(3)
     .setMaxLength(16)
     .setRequired(true);
@@ -36,6 +48,17 @@ export async function showVerifyModal(interaction) {
  * @param {import('discord.js').ButtonInteraction} interaction
  */
 export async function showTeamModal(interaction) {
+  if (!bridgeInstance || !bridgeInstance.isConnected) {
+    await interaction.reply({
+      embeds: [errorEmbed(
+        'Minecraft-Server offline',
+        'Der Bot ist gerade nicht auf dem Minecraft-Server. Bitte versuche es spaeter erneut.',
+      )],
+      ephemeral: true,
+    });
+    return;
+  }
+
   const modal = new ModalBuilder()
     .setCustomId('modal_team_join')
     .setTitle('Team beitreten');
@@ -44,7 +67,6 @@ export async function showTeamModal(interaction) {
     .setCustomId('input_ign')
     .setLabel('Bestaetige deinen Minecraft-Namen (IGN)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('z.B. Steve123')
     .setMinLength(3)
     .setMaxLength(16)
     .setRequired(true);
@@ -63,7 +85,7 @@ export async function showTeamModal(interaction) {
 export async function handleVerifyModalSubmit(interaction, client) {
   await interaction.deferReply({ ephemeral: true });
 
-  const ign = interaction.fields.getTextInputValue('input_ign');
+  const ign = interaction.fields.getTextInputValue('input_ign').trim();
   const result = await startVerification(client, interaction.guild, interaction.user.id, ign);
 
   if (!result.ok) {
@@ -73,22 +95,25 @@ export async function handleVerifyModalSubmit(interaction, client) {
     return;
   }
 
-  const botName = configService.env.minecraftUsername || 'WindBot';
+  const botName = configService.env.minecraftUsername || 'DicksBot';
   const embed = buildEmbed({
-    title: '🔑 Dein Verifizierungs-Code',
+    title: 'Dein Verifizierungs-Code',
     description:
       `Hallo <@${interaction.user.id}>!\n\n` +
-      `Dein persoenlicher Code lautet:\n\n` +
-      `# \`${result.code}\`\n\n` +
-      `**Naechste Schritte:**\n` +
-      `1. Oeffne Minecraft und verbinde dich mit DICKS.\n` +
-      `2. Fuehre folgenden Befehl im Chat aus:\n` +
-      `   \`/msg ${botName} ${result.code}\`\n\n` +
-      `⏱️ *Dieser Code ist genau 5 Minuten gueltig.*`,
+      `Oeffne Minecraft, verbinde dich mit dem Server und fuehre diesen Befehl aus:\n\n` +
+      '```\n' +
+      `/msg ${botName} ${result.code}\n` +
+      '```\n' +
+      `Gueltig fuer 5 Minuten.`,
     color: 'primary',
   });
 
-  await interaction.editReply({ embeds: [embed] });
+  const reply = await interaction.editReply({ embeds: [embed] });
+
+  // Message-ID speichern damit die Bridge diese spaeter bearbeiten kann
+  if (reply && reply.id && result.record) {
+    updateCodeMessageId(result.record.id, reply.id);
+  }
 }
 
 /**
@@ -99,7 +124,7 @@ export async function handleVerifyModalSubmit(interaction, client) {
 export async function handleTeamModalSubmit(interaction, client) {
   await interaction.deferReply({ ephemeral: true });
 
-  const ign = interaction.fields.getTextInputValue('input_ign');
+  const ign = interaction.fields.getTextInputValue('input_ign').trim();
   const result = await requestJoin(client, interaction.user.id, ign);
 
   if (!result.ok) {

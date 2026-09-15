@@ -2,6 +2,7 @@
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { errorEmbed, successEmbed, grantRole, removeRole, syncNickname, sendLogEmbed } from '../helpers.js';
+import { removeRankRoles, clearOwnerSlots } from '../teamService.js';
 import * as db from '../../database/index.js';
 import { PlayerStatus, LogCategory } from '../../shared/types.js';
 import eventBus from '../../shared/events.js';
@@ -44,6 +45,12 @@ export default {
     const guild = interaction.guild;
     if (guild) {
       await removeRole(guild, targetUser.id, 'roleTeam');
+      await removeRankRoles(guild, targetUser.id);
+    }
+    await clearOwnerSlots(interaction.client, targetUser.id);
+
+    if (user.ign) {
+      eventBus.emit('minecraft:sendCommand', `/team remove ${user.ign}`);
     }
 
     await sendLogEmbed(interaction.client, {

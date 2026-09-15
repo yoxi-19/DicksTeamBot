@@ -200,4 +200,45 @@
   .border-glow:hover::before {
     @apply opacity-100;
   }
+
+  /* === Initial dashboard loading screen === */
+  .dashboard-loader {
+    @apply absolute inset-0 z-20 flex min-h-full flex-col items-center justify-center overflow-hidden bg-windsmp-darkest/95 text-center backdrop-blur-md;
+  }
+  .dashboard-loader__halo {
+    @apply absolute h-72 w-72 rounded-full;
+    background: radial-gradient(circle, rgba(174, 198, 207, 0.15), rgba(106, 147, 176, 0.05) 38%, transparent 68%);
+    animation: loader-halo 2.4s ease-in-out infinite;
+  }
+  .dashboard-loader__mark {
+    @apply relative z-10 mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-windsmp-primary/30 bg-windsmp-primary/10 text-windsmp-primary;
+    box-shadow: 0 0 38px rgba(174, 198, 207, 0.16), inset 0 1px 0 rgba(255,255,255,0.1);
+    animation: loader-mark 1.8s ease-in-out infinite;
+  }
+  .dashboard-loader__mark svg { @apply h-8 w-8; }
+  .dashboard-loader__bars { @apply relative z-10 mb-4 flex h-5 items-end gap-1; }
+  .dashboard-loader__bars i {
+    @apply block w-1 rounded-full bg-windsmp-primary;
+    animation: loader-bar 0.9s ease-in-out infinite alternate;
+  }
+  .dashboard-loader__bars i:nth-child(1) { height: 35%; animation-delay: -0.5s; }
+  .dashboard-loader__bars i:nth-child(2) { height: 70%; animation-delay: -0.3s; }
+  .dashboard-loader__bars i:nth-child(3) { height: 100%; animation-delay: -0.1s; }
+  .dashboard-loader__bars i:nth-child(4) { height: 70%; animation-delay: -0.3s; }
+  .dashboard-loader__bars i:nth-child(5) { height: 35%; animation-delay: -0.5s; }
+  .dashboard-loader p { @apply relative z-10 text-sm font-medium text-gray-200; }
+  .dashboard-loader span { @apply relative z-10 mt-1 text-xs text-gray-600; }
+}
+
+@keyframes loader-halo {
+  0%, 100% { transform: scale(0.82); opacity: 0.45; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+@keyframes loader-mark {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(4deg); }
+}
+@keyframes loader-bar {
+  from { transform: scaleY(0.35); opacity: 0.45; }
+  to { transform: scaleY(1); opacity: 1; }
 }

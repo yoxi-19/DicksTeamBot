@@ -127,12 +127,13 @@ export function upsertUser(data) {
     getDb()
       .prepare(
         `UPDATE users SET ign = COALESCE(?, ign), status = COALESCE(?, status),
-         team = COALESCE(?, team), is_online = COALESCE(?, is_online),
+         team = CASE WHEN ? THEN ? ELSE team END, is_online = COALESCE(?, is_online),
          verified_at = COALESCE(?, verified_at), updated_at = ? WHERE id = ?`,
       )
       .run(
         data.ign ?? null,
         data.status ?? null,
+        Object.hasOwn(data, 'team') ? 1 : 0,
         data.team ?? null,
         data.is_online ?? null,
         data.verified_at ?? null,
@@ -182,6 +183,29 @@ export function listUsers() {
   return getDb().prepare('SELECT * FROM users ORDER BY ign IS NULL, ign ASC').all();
 }
 
+/**
+ * Setzt alle Spieler auf offline (z.B. bei Bot-Disconnect).
+ */
+export function setAllUsersOffline() {
+  getDb().prepare('UPDATE users SET is_online = 0').run();
+}
+
+/**
+ * Gleicht den Online-Status mit der live Spielerliste des Bots ab.
+ * Spieler in der Liste werden online gesetzt, alle anderen offline.
+ * @param {string[]} onlineIgns - IGNs laut Minecraft-Server
+ */
+export function reconcileOnlineStates(onlineIgns) {
+  const clean = [...new Set((onlineIgns || []).filter((n) => typeof n === 'string' && n.length > 0))];
+  const setOffline = getDb().prepare('UPDATE users SET is_online = 0');
+  const setOnline = getDb().prepare('UPDATE users SET is_online = 1 WHERE ign = ?');
+  const apply = getDb().transaction((igns) => {
+    setOffline.run();
+    for (const ign of igns) setOnline.run(ign);
+  });
+  apply(clean);
+}
+
 // ---------- Verification Codes ----------
 
 /**
@@ -189,18 +213,27 @@ export function listUsers() {
  * @param {object} data { discordId, ign, code, ttlMs }
  * @returns {object}
  */
-export function createVerificationCode({ discordId, ign, code, ttlMs }) {
+export function createVerificationCode({ discordId, ign, code, ttlMs, messageId }) {
   const now = new Date();
   const expires = new Date(now.getTime() + ttlMs);
   const info = getDb()
     .prepare(
-      `INSERT INTO verification_codes (discord_id, ign, code, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO verification_codes (discord_id, ign, code, created_at, expires_at, message_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .run(discordId, ign, code, now.toISOString(), expires.toISOString());
+    .run(discordId, ign, code, now.toISOString(), expires.toISOString(), messageId || null);
   return getDb()
     .prepare('SELECT * FROM verification_codes WHERE id = ?')
     .get(info.lastInsertRowid);
+}
+
+/**
+ * Aktualisiert die Message-ID eines Verifizierungscodes.
+ * @param {number} id
+ * @param {string} messageId
+ */
+export function updateCodeMessageId(id, messageId) {
+  getDb().prepare('UPDATE verification_codes SET message_id = ? WHERE id = ?').run(messageId, id);
 }
 
 /**
@@ -356,12 +389,25 @@ export function addMessage({ category, content, author = null }) {
 }
 
 /**
- * Listet gespeicherte Nachrichten (neueste zuerst).
+ * Listet die neuesten gespeicherten Nachrichten in chronologischer Reihenfolge.
  * @param {number} limit
  * @returns {object[]}
  */
 export function listMessages(limit = 500) {
-  return getDb().prepare('SELECT * FROM messages ORDER BY id ASC LIMIT ?').all(limit);
+  const rows = getDb().prepare('SELECT * FROM messages ORDER BY id DESC LIMIT ?').all(limit);
+  return rows.reverse();
+}
+
+/**
+ * Loescht alte Chat-Nachrichten, behaelt nur die neuesten.
+ * @param {number} keep
+ * @returns {number} Anzahl geloeschter Zeilen
+ */
+export function pruneMessages(keep = 5000) {
+  const info = getDb()
+    .prepare('DELETE FROM messages WHERE id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT ?)')
+    .run(keep);
+  return info.changes;
 }
 
 // ---------- Settings ----------
@@ -411,4 +457,178 @@ export function listSettings() {
     }
   }
   return out;
+}
+
+// ---------- Payments ----------
+
+/**
+ * Erstellt einen neuen Payment-Eintrag (wartend auf Zahlung).
+ * @param {object} data { discordId, ign, amount, recipient, timeoutMs }
+ * @returns {object}
+ */
+export function createPayment({ discordId, ign, amount, recipient, timeoutMs }) {
+  const now = new Date();
+  const timeoutAt = new Date(now.getTime() + timeoutMs);
+  const info = getDb()
+    .prepare(
+      `INSERT INTO payments (discord_id, ign, amount, recipient, status, timeout_at)
+       VALUES (?, ?, ?, ?, 'pending', ?)`,
+    )
+    .run(discordId, ign, amount, recipient, timeoutAt.toISOString());
+  return getDb().prepare('SELECT * FROM payments WHERE id = ?').get(info.lastInsertRowid);
+}
+
+/**
+ * Findet ein aktives (pending) Payment fuer einen Discord-User.
+ * @param {string} discordId
+ * @returns {object|null}
+ */
+export function findActivePayment(discordId) {
+  return getDb()
+    .prepare(
+      "SELECT * FROM payments WHERE discord_id = ? AND status = 'pending' ORDER BY id DESC LIMIT 1",
+    )
+    .get(discordId) || null;
+}
+
+/**
+ * Aktualisiert den Status eines Payments.
+ * @param {number} id
+ * @param {string} status
+ * @param {object} extra - optionale Zusatzfelder { confirmedAt, chatMessage }
+ */
+export function updatePaymentStatus(id, status, extra = {}) {
+  const sets = ['status = ?'];
+  const params = [status];
+  if (extra.confirmedAt) {
+    sets.push('confirmed_at = ?');
+    params.push(extra.confirmedAt);
+  }
+  if (extra.chatMessage) {
+    sets.push('chat_message = ?');
+    params.push(extra.chatMessage);
+  }
+  params.push(id);
+  getDb()
+    .prepare(`UPDATE payments SET ${sets.join(', ')} WHERE id = ?`)
+    .run(...params);
+  return getDb().prepare('SELECT * FROM payments WHERE id = ?').get(id);
+}
+
+/**
+ * Setzt alle abgelaufenen pending-Payments auf 'timeout'.
+ */
+export function timeoutExpiredPayments() {
+  const now = new Date().toISOString();
+  const expired = getDb()
+    .prepare(
+      "SELECT * FROM payments WHERE status = 'pending' AND timeout_at < ?",
+    )
+    .all(now);
+  for (const p of expired) {
+    updatePaymentStatus(p.id, 'timeout');
+  }
+  return expired;
+}
+
+/**
+ * Listet Payments mit optionalen Filtern.
+ * @param {object} opts { status, limit }
+ * @returns {object[]}
+ */
+export function listPayments({ status = null, limit = 200 } = {}) {
+  if (status) {
+    return getDb()
+      .prepare('SELECT * FROM payments WHERE status = ? ORDER BY id DESC LIMIT ?')
+      .all(status, limit);
+  }
+  return getDb()
+    .prepare('SELECT * FROM payments ORDER BY id DESC LIMIT ?')
+    .all(limit);
+}
+
+/**
+ * Findet das juengste Payment eines Discord-Nutzers (egal welcher Status).
+ * @param {string} discordId
+ * @returns {object|null}
+ */
+export function findLatestPayment(discordId) {
+  return getDb().prepare('SELECT * FROM payments WHERE discord_id = ? ORDER BY id DESC LIMIT 1').get(discordId) || null;
+}
+
+/**
+ * Findet das juengste CONFIRMED-Payment eines Discord-Nutzers.
+ * Nur dafuer darf je ein Refund ausgefuehrt werden.
+ * @param {string} discordId
+ * @returns {object|null}
+ */
+export function findLatestConfirmedPayment(discordId) {
+  return getDb().prepare(
+    "SELECT * FROM payments WHERE discord_id = ? AND status = 'confirmed' ORDER BY id DESC LIMIT 1",
+  ).get(discordId) || null;
+}
+
+/**
+ * Beansprucht ein Payment atomar fuer den Refund.
+ * Markiert es NUR dann als 'refunding', wenn es noch 'confirmed' ist.
+ * Der Rueckgabewert changes === 1 bedeutet: nur dieser Aufruf darf zahlen.
+ * Schuetzt vor Doppel-Refunds (Timer, Retry, Neustart).
+ * @param {number} id
+ * @returns {boolean} true wenn erfolgreich beansprucht
+ */
+export function claimPaymentForRefund(id) {
+  const info = getDb()
+    .prepare("UPDATE payments SET status = 'refunding' WHERE id = ? AND status = 'confirmed'")
+    .run(id);
+  return info.changes === 1;
+}
+
+/**
+ * Macht eine Refund-Beanspruchung rueckgaengig (z.B. Bot offline).
+ * Nur moeglich solange noch 'refunding' – ein REFUNDED bleibt fuer immer.
+ * @param {number} id
+ */
+export function releaseRefundClaim(id) {
+  getDb()
+    .prepare("UPDATE payments SET status = 'confirmed' WHERE id = ? AND status = 'refunding'")
+    .run(id);
+}
+
+/**
+ * Schreibt einen erfolgreich gesendeten Refund fest.
+ * @param {number} id
+ * @returns {object|null} Die aktualisierte Zeile
+ */
+export function completeRefund(id) {
+  getDb()
+    .prepare("UPDATE payments SET status = 'refunded', refunded_at = ? WHERE id = ? AND status = 'refunding'")
+    .run(new Date().toISOString(), id);
+  return getDb().prepare('SELECT * FROM payments WHERE id = ?').get(id) || null;
+}
+
+/**
+ * Findet alte CONFIRMED-Payments, deren User nicht im Team ist.
+ * Dient der Selbstheilung nach Neustarts (verlorene Refund-Timer).
+ * @param {string} olderThanIso - ISO-Zeitstempel (Obergrenze confirmed_at)
+ * @param {string|null} newerThanIso - optionale Untergrenze confirmed_at
+ * @returns {object[]}
+ */
+export function findStaleConfirmedPayments(olderThanIso, newerThanIso = null) {
+  if (newerThanIso) {
+    return getDb()
+      .prepare("SELECT * FROM payments WHERE status = 'confirmed' AND confirmed_at IS NOT NULL AND confirmed_at < ? AND confirmed_at > ? ORDER BY id ASC")
+      .all(olderThanIso, newerThanIso);
+  }
+  return getDb()
+    .prepare("SELECT * FROM payments WHERE status = 'confirmed' AND confirmed_at IS NOT NULL AND confirmed_at < ? ORDER BY id ASC")
+    .all(olderThanIso);
+}
+
+/**
+ * Findet ein Payment anhand der ID.
+ * @param {number} id
+ * @returns {object|null}
+ */
+export function findPaymentById(id) {
+  return getDb().prepare('SELECT * FROM payments WHERE id = ?').get(id) || null;
 }

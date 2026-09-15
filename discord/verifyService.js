@@ -7,7 +7,9 @@ import logger from '../shared/logger.js';
 import { generateCode, PlayerStatus, LogCategory } from '../shared/types.js';
 import { sanitizeIgn } from '../shared/types.js';
 import eventBus from '../shared/events.js';
-import { syncNickname, grantRole, removeRole, sendLogEmbed, sendDm, successEmbed } from './helpers.js';
+import { syncNickname, grantRole, removeRole, sendLogEmbed } from './helpers.js';
+import { sendPaymentEmbed } from './paymentService.js';
+import { removeRankRoles, clearOwnerSlots } from './teamService.js';
 
 /**
  * Startet die Verifizierung fuer einen Discord-Nutzer.
@@ -65,9 +67,11 @@ export async function completeVerification(client, code, submittedIgn) {
     return { ok: false, message: 'Ungueltiger oder abgelaufener Code.' };
   }
 
+  const messageId = record.message_id || null;
+
   // IGN-Abgleich: Pruefen ob der Spieler, der den Code sendet, der richtige ist.
   if (submittedIgn && record.ign.toLowerCase() !== submittedIgn.toLowerCase()) {
-    return { ok: false, message: 'MISMATCH', discordId: record.discord_id };
+    return { ok: false, message: 'MISMATCH', discordId: record.discord_id, messageId };
   }
 
   const discordId = record.discord_id;
@@ -90,7 +94,7 @@ export async function completeVerification(client, code, submittedIgn) {
     await removeRole(guild, discordId, 'roleJoin');
   }
 
-  // Log + DM.
+  // Log (kein DM - Bridge bearbeitet das origale Embed).
   await sendLogEmbed(client, {
     category: LogCategory.VERIFY,
     title: 'Konto verifiziert',
@@ -98,18 +102,22 @@ export async function completeVerification(client, code, submittedIgn) {
     color: 'success',
   });
 
-  await sendDm(
-    client,
-    discordId,
-    {
-      embeds: [
-        successEmbed(
-          'Verifizierung erfolgreich',
-          `Dein Minecraft-Konto **${record.ign}** wurde erfolgreich verifiziert. Willkommen bei Team DICKS!`,
-        ),
-      ],
-    },
-  );
+  // Reihenfolge fuer den Nutzer: erst die erfolgreiche Verifizierung, danach
+  // die konkrete Zahlungsaufforderung – beide in derselben DM-Unterhaltung.
+  try {
+    const { EmbedBuilder } = await import('discord.js');
+    const discordUser = await client.users.fetch(discordId);
+    const dm = await discordUser.createDM();
+    const doneEmbed = new EmbedBuilder()
+      .setColor(0x57F287)
+      .setTitle('Verifizierung erfolgreich')
+      .setDescription(`Dein Minecraft-Konto **${record.ign}** wurde erfolgreich verifiziert.`)
+      .setTimestamp();
+    await dm.send({ embeds: [doneEmbed] });
+    await sendPaymentEmbed(client, discordId, record.ign);
+  } catch (err) {
+    logger.warn(`[Verify] Konnte Abschlussnachrichten nicht senden: ${err.message}`);
+  }
 
   eventBus.emitToDashboard('verificationSuccess', {
     discordId,
@@ -119,7 +127,7 @@ export async function completeVerification(client, code, submittedIgn) {
   eventBus.emitToDashboard('playerUpdate', db.listUsers());
 
   logger.info(`[Verify] Verifizierung abgeschlossen: ${discordId} -> ${record.ign}`);
-  return { ok: true, message: `Verifiziert als ${record.ign}.`, discordId };
+  return { ok: true, message: `Verifiziert als ${record.ign}.`, discordId, ign: record.ign, messageId };
 }
 
 /**
@@ -178,8 +186,10 @@ export async function unlink(client, discordId) {
   if (guild) {
     await removeRole(guild, discordId, 'roleVerified');
     await removeRole(guild, discordId, 'roleTeam');
+    await removeRankRoles(guild, discordId);
     await grantRole(guild, discordId, 'roleJoin');
   }
+  await clearOwnerSlots(client, discordId);
 
   await sendLogEmbed(client, {
     category: LogCategory.VERIFY,

@@ -43,7 +43,7 @@ router.get('/overview', authenticateToken, (req, res) => {
       },
       counts: {
         totalUsers: users.length,
-        verified: users.filter((u) => u.status === 'verified').length,
+        verified: users.filter((u) => u.status === 'verified' || u.status === 'team').length,
         teamMembers: users.filter((u) => u.status === 'team').length,
         unverified: users.filter((u) => u.status === 'unverified').length,
         online: users.filter((u) => u.is_online).length,

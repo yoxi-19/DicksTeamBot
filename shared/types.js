@@ -26,8 +26,23 @@ export const MessageCategory = Object.freeze({
 export const PlayerStatus = Object.freeze({
   UNVERIFIED: 'unverified',
   VERIFIED: 'verified',
+  WAITING_PAYMENT: 'waiting_payment',
   TEAM: 'team',
   LEFT: 'left',
+});
+
+/**
+ * Status einer Zahlung.
+ * @readonly
+ * @enum {string}
+ */
+export const PaymentStatus = Object.freeze({
+  PENDING: 'pending',
+  CONFIRMED: 'confirmed',
+  FAILED: 'failed',
+  TIMEOUT: 'timeout',
+  REFUNDING: 'refunding',
+  REFUNDED: 'refunded',
 });
 
 /**
@@ -70,6 +85,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   channelLogs: '',
   channelVerify: '',
   channelTeam: '',
+  channelJoinLogs: '',
 
   // Farben (Hex, ohne '#')
   colors: {
@@ -93,8 +109,23 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
   // Team-Einstellungen
   team: {
+    // Name des Teams für die Annahme-Anweisung nach einem Invite
+    name: 'Dicks5',
     // Wie lange Team-Einladungen gueltig sind (ms)
     inviteTtlMs: 30 * 60 * 1000,
+  },
+
+  // Team-Raenge (1 = hoechstes Team, count = Einstieg).
+  // Jede Rangstufe hat eine eigene Discord-Rolle und einen Owner mit Extra-Rolle.
+  teamRanks: {
+    // Anzahl der Teams/Rangstufen (anpassbar, 1-10)
+    count: 5,
+    // Rollen-IDs je Rangstufe (Schluessel = Rangnummer als String)
+    roles: { 1: '', 2: '', 3: '', 4: '', 5: '' },
+    // Extra-Rollen-IDs fuer die Owner je Rangstufe
+    ownerRoles: { 1: '', 2: '', 3: '', 4: '', 5: '' },
+    // Owner-Discord-IDs je Rangstufe ('' = kein Owner)
+    owners: { 1: '', 2: '', 3: '', 4: '', 5: '' },
   },
 
   // Timeouts / Cooldowns
@@ -103,6 +134,16 @@ export const DEFAULT_SETTINGS = Object.freeze({
     verifyCooldownMs: 60 * 1000,
     // Wie lange Buttons aktiv bleiben (ms), 0 = unendlich
     buttonTtlMs: 0,
+    // Timeout fuer Zahlungsaufforderung in ms (10 Minuten)
+    paymentTimeoutMs: 10 * 60 * 1000,
+  },
+
+  // Payment-Einstellungen
+  payment: {
+    // Empfaenger-IGN (TeamBank)
+    recipient: 'DicksTeamBank',
+    // Erforderlicher Betrag in $
+    amount: 250000,
   },
 
   // AFK-Bots: Liste von MC-Konten, die auf dem Server AFK stehen
@@ -112,29 +153,29 @@ export const DEFAULT_SETTINGS = Object.freeze({
   // Alle erkannten Muster sind konfigurierbar und NICHT hart kodiert.
   patterns: {
     // Spieler chatet (z.B. "<Spieler> Nachricht")
-    PLAYER_CHAT: /^<([^>]+)>\s*(.*)$/,
+    PLAYER_CHAT: '^<([^>]+)>\\s*(.*)$',
     // System-Nachrichten (Breite Erfassung)
-    SYSTEM: /^\[(Server|Info|System)\]\s*(.*)$/i,
+    SYSTEM: '^\\[(Server|Info|System)\\]\\s*(.*)$',
     // Spieler join (z.B. "Spieler joined the game")
-    JOIN: /^(\w{1,16})\s+joined the game$/i,
+    JOIN: '^(\\w{1,16})\\s+joined the game$',
     // Spieler leave
-    LEAVE: /^(\w{1,16})\s+left the game$/i,
+    LEAVE: '^(\\w{1,16})\\s+left the game$',
     // Team-Einladung gesendet (z.B. "Du hast Spieler in dein Team eingeladen")
-    TEAM_INVITED: /invited\s+(\w{1,16})\s+(?:to|into)/i,
+    TEAM_INVITED: 'invited\\s+(\\w{1,16})\\s+(?:to|into)',
     // Team-Beitritt (z.B. "Spieler ist dem Team beigetreten")
-    TEAM_JOIN: /(\w{1,16})\s+joined\s+(?:the\s+)?team/i,
+    TEAM_JOIN: '(\\w{1,16})\\s+(?:has\\s+)?joined\\s+(?:your|the)\\s+team',
     // Team verlassen
-    TEAM_LEFT: /(\w{1,16})\s+left\s+(?:the\s+)?team/i,
-    // Zahlung / Spende
-    PAYMENT: /(?:payment|donat(?:ion|ed)|paid)\s*(?:of)?\s*[\$\€\£]?\s*([\d.,]+)?/i,
+    TEAM_LEFT: '(\\w{1,16})\\s+(?:has\\s+)?left\\s+(?:your|the)\\s+team',
+    // Zahlung / Transfer (z.B. "Spieler hat 250000 $ an Empfaenger ueberwiesen")
+    PAYMENT: '(?:you\\s+received\\s+\\$?[\\d.,]+\\s+from\\s+\\w{1,16}|\\w{1,16}\\s+(?:paid|sent|transferred|hat)\\b.*(?:to|an|an\\s+den|bezahlt|ueberwiesen))',
     // Auktion / Handel (z.B. "ORDERS » ... created an ... order")
-    AUCTION: /^ORDERS?\s*[»>]/i,
-    // Private Nachricht an den Bot (z.B. "[WindBot -> Ich] CODE")
-    PRIVATE_MESSAGE: /^\[([^\]]+)\s*->\s*[^\]]*\]\s*(.*)$/,
+    AUCTION: '^ORDERS?\\s*[»>]',
+    // Private Nachricht an den Bot (z.B. "[DicksBot -> Ich] CODE")
+    PRIVATE_MESSAGE: '^\\[([^\\]]+)\\s*->\\s*[^\\]]*\\]\\s*(.*)$',
     // Fehler (z.B. "Error: ...", "Unknown command")
-    ERROR: /^(?:Error|Unknown command|Invalid|Failed|An error)/i,
+    ERROR: '^(?:Error|Unknown command|Invalid|Failed|An error)',
     // Command-Ausgabe (z.B. "/team ..." oder "Command: /rtpqueue")
-    COMMAND: /^(?:Command:\s*)?\/(\w+)(?:\s+(.*))?$/,
+    COMMAND: '^(?:Command:\\s*)?\\/(\\w+)(?:\\s+(.*))?$',
   },
 });
 

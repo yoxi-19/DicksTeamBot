@@ -1,9 +1,13 @@
 // Variable: Spieler-Route - CRUD fuer Benutzerdaten.
 
 import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import * as db from '../../database/index.js';
 import { sanitizeIgn } from '../../shared/types.js';
+import eventBus from '../../shared/events.js';
+import { getDiscordClient } from './services.js';
+import { unlink } from '../../discord/verifyService.js';
+import { cancelRefund } from '../../discord/paymentService.js';
 
 const router = Router();
 
@@ -81,6 +85,52 @@ router.patch('/:id', authenticateToken, (req, res) => {
     return res.json(updated);
   } catch (err) {
     return res.status(500).json({ error: 'Fehler beim Aktualisieren.' });
+  }
+});
+
+// POST /api/players/:id/unlink - Verknuepfung entfernen (nur Admin)
+// Entfernt Rollen + Nickname im Discord, storniert Timer und loggt alles.
+router.post('/:id/unlink', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'Ungueltige Spieler-ID.' });
+    const existing = db.findUserById(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Spieler nicht gefunden.' });
+    }
+    if (!existing.ign) {
+      return res.status(400).json({ error: 'Spieler ist nicht verknuepft.' });
+    }
+
+    // Laufende Timer stornieren, damit nichts mehr nachtraeglich passiert.
+    cancelRefund(existing.discord_id);
+    db.invalidateCodesForUser(existing.discord_id);
+
+    const client = getDiscordClient();
+    let message;
+    if (client) {
+      const result = await unlink(client, existing.discord_id);
+      if (!result.ok) {
+        return res.status(400).json({ error: result.message });
+      }
+      message = result.message;
+    } else {
+      // Discord offline: nur DB zuruecksetzen + loggen.
+      const ign = existing.ign;
+      db.unlinkUser(existing.discord_id);
+      const entry = db.addLog({
+        category: 'verify',
+        title: 'Verknuepfung entfernt (Dashboard)',
+        description: `${existing.discord_id} wurde von **${ign}** getrennt (Discord offline, nur DB).`,
+      });
+      eventBus.emitToDashboard('logUpdate', entry);
+      eventBus.emitToDashboard('playerUpdate', db.listUsers());
+      message = `Verknuepfung zu ${ign} wurde entfernt.`;
+    }
+
+    return res.json({ ok: true, message });
+  } catch (err) {
+    return res.status(500).json({ error: 'Fehler beim Entfernen der Verknuepfung.' });
   }
 });
 

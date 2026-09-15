@@ -1,10 +1,8 @@
 // Variable: /team sync - Synchronisiert alle Team-Rollen basierend auf dem Datenbankstatus.
 
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { errorEmbed, successEmbed, grantRole, removeRole } from '../helpers.js';
-import * as db from '../../database/index.js';
-import { PlayerStatus } from '../../shared/types.js';
-import logger from '../../shared/logger.js';
+import { errorEmbed, successEmbed } from '../helpers.js';
+import { syncAllMembers } from '../teamService.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -23,35 +21,19 @@ export default {
 
     await interaction.deferReply({ ephemeral: true });
 
-    const guild = interaction.guild;
-    const users = db.listUsers();
-    let synced = 0;
-    let errors = 0;
-
-    for (const user of users) {
-      if (!user.discord_id) continue;
-
-      try {
-        if (user.status === PlayerStatus.TEAM) {
-          await grantRole(guild, user.discord_id, 'roleTeam');
-          await removeRole(guild, user.discord_id, 'roleJoin');
-        } else if (user.status === PlayerStatus.VERIFIED) {
-          await grantRole(guild, user.discord_id, 'roleVerified');
-          await removeRole(guild, user.discord_id, 'roleTeam');
-          await removeRole(guild, user.discord_id, 'roleJoin');
-        }
-        synced++;
-      } catch (err) {
-        logger.error(`[Discord] Sync-Fehler fuer ${user.discord_id}: ${err.message}`);
-        errors++;
-      }
+    const result = await syncAllMembers(interaction.client);
+    if (!result.ok) {
+      await interaction.editReply({
+        embeds: [errorEmbed('Fehler', result.error || 'Synchronisierung fehlgeschlagen.')],
+      });
+      return;
     }
 
     await interaction.editReply({
       embeds: [
         successEmbed(
           'Synchronisierung abgeschlossen',
-          `**${synced}** Nutzer synchronisiert${errors > 0 ? `, **${errors}** Fehler` : ''}.`,
+          `**${result.synced}** Nutzer synchronisiert${result.errors > 0 ? `, **${result.errors}** Fehler` : ''}.\n**${result.detectedOwners}** Owner aus Owner-Rollen erkannt.`,
         ),
       ],
     });

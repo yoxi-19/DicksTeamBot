@@ -12,9 +12,9 @@ import fs from 'node:fs';
 
 // Interne Module
 import logger from '../shared/logger.js';
-import { initDatabase, closeDatabase } from '../database/index.js';
+import { initDatabase, closeDatabase, pruneMessages } from '../database/index.js';
 import configService from './config.js';
-import { initSocket } from './socket/index.js';
+import { initSocket, markConsoleRestart } from './socket/index.js';
 import { DiscordBot } from '../discord/bot.js';
 import { bridgeInstance } from '../minecraft/index.js';
 import { afkManager } from '../minecraft/afkManager.js';
@@ -30,6 +30,11 @@ import messageRoutes from './routes/messages.js';
 import chatRoutes from './routes/chat.js';
 import serviceRoutes, { setInstances } from './routes/services.js';
 import afkRoutes from './routes/afk.js';
+import paymentRoutes from './routes/payments.js';
+import discordRoutes from './routes/discord.js';
+
+// Payment-Service
+import { checkPaymentTimeouts, reconcileStaleRefunds } from '../discord/paymentService.js';
 
 // Middleware
 import { rateLimit } from './middleware/rateLimit.js';
@@ -80,6 +85,8 @@ async function main() {
   app.use('/api/chat', chatRoutes);
   app.use('/api/services', serviceRoutes);
   app.use('/api/afk', afkRoutes);
+  app.use('/api/payments', paymentRoutes);
+  app.use('/api/discord', discordRoutes);
 
   // Health-Check
   app.get('/api/health', (req, res) => {
@@ -105,6 +112,7 @@ async function main() {
   // 5. HTTP-Server und Socket.IO
   const httpServer = createServer(app);
   initSocket(httpServer);
+  markConsoleRestart();
 
   // 6. HTTP-Server starten
   httpServer.listen(PORT, () => {
@@ -135,6 +143,26 @@ async function main() {
 
   // 8b. AFK-Bots starten
   afkManager.loadFromConfig();
+
+  // 8c. Payment-Timeouts pruefen (alle 60 Sekunden)
+  const client = discordBot.getClient();
+  if (client) {
+    client.once('ready', () => {
+      setInterval(() => checkPaymentTimeouts(client), 60_000);
+      logger.info('[Server] Payment-Timeout-Checker gestartet.');
+      // Alte tote Payments nach Neustart einsammeln (Refund-Selbstheilung)
+      reconcileStaleRefunds(client).catch((err) => logger.error(`[Server] Refund-Reconcile fehlgeschlagen: ${err.message}`));
+      // Chat-Verlauf schlank halten (neueste 5000 behalten, stuendlich)
+      setInterval(() => {
+        try {
+          const deleted = pruneMessages(5000);
+          if (deleted > 0) logger.info(`[Server] ${deleted} alte Chat-Nachrichten geloescht.`);
+        } catch (err) {
+          logger.error(`[Server] Chat-Prune fehlgeschlagen: ${err.message}`);
+        }
+      }, 60 * 60 * 1000);
+    });
+  }
 
   // 9. Graceful Shutdown
   const shutdown = (signal) => {

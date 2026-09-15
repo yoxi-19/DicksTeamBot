@@ -573,7 +573,7 @@ pm2 startup                         # Autostart einrichten
 2. Spieler gibt seinen Minecraft-Namen ein
 3. Bot generiert einen 6-stelligen Code (gueltig 5 Minuten)
 4. Spieler verbindet sich mit dem Minecraft-Server
-5. Spieler sendet: `/msg LudwigHolstein <CODE>`
+5. Spieler sendet: `/msg <BOT_NAME> <CODE>`
 6. Bridge erkennt den Code und verifiziert das Konto
 7. Discord-Nickname wird aktualisiert
 8. Verified-Rolle wird vergeben

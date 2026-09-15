@@ -17,9 +17,16 @@ export function SocketProvider({ children }) {
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [services, setServices] = useState({ discord: { running: false }, minecraft: { running: false } });
   const [afkAccounts, setAfkAccounts] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [initialData, setInitialData] = useState({});
 
   useEffect(() => {
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated || !token) {
+      setInitialData({});
+      return;
+    }
+    setInitialData({});
+    const markInitial = (key) => setInitialData((previous) => ({ ...previous, [key]: true }));
 
     // Im Vite-Entwicklungsmodus läuft Socket.IO über den Proxy; bei einer
     // externen API-URL muss der Client hingegen direkt zum Backend verbinden.
@@ -66,12 +73,17 @@ export function SocketProvider({ children }) {
         setServices(data.services);
       }
       setStats(data);
+      if (data.system) markInitial('stats');
     });
-    newSocket.on('playerUpdate', (data) => setPlayers(Array.isArray(data) ? data : []));
+    newSocket.on('playerUpdate', (data) => {
+      if (Array.isArray(data)) markInitial('players');
+      setPlayers(Array.isArray(data) ? data : []);
+    });
     newSocket.on('chatMessage', (data) => {
       if (Array.isArray(data)) {
         // Initiale Daten: Alles ersetzen
         setMessages(data.slice(-1000));
+        markInitial('messages');
       } else if (data && typeof data === 'object') {
         // Neue Nachricht: Anhaengen
         setMessages((prev) => [...prev.filter((message) => message.id !== data.id).slice(-999), data]);
@@ -81,6 +93,7 @@ export function SocketProvider({ children }) {
       if (Array.isArray(data)) {
         setLogs(data);
         setStats((previous) => ({ ...previous, recentLogs: data.slice(0, 5) }));
+        markInitial('logs');
       } else if (data && typeof data === 'object') {
         setLogs((prev) => [data, ...prev.filter((log) => log.id !== data.id).slice(0, 999)]);
         setStats((previous) => ({
@@ -89,15 +102,23 @@ export function SocketProvider({ children }) {
         }));
       }
     });
-    newSocket.on('teamUpdate', (data) => setApplications(Array.isArray(data) ? data : []));
+    newSocket.on('teamUpdate', (data) => {
+      if (Array.isArray(data)) markInitial('applications');
+      setApplications(Array.isArray(data) ? data : []);
+    });
     newSocket.on('consoleLog', (data) => {
-      if (data && typeof data === 'object') {
+      if (Array.isArray(data)) {
+        // Verlauf nach (Neu-)Verbindung: Alles ersetzen
+        setConsoleLogs(data.slice(-1000));
+        markInitial('console');
+      } else if (data && typeof data === 'object') {
         setConsoleLogs((prev) => [...prev.slice(-999), data]);
       }
     });
     newSocket.on('servicesUpdate', (data) => {
       if (data && typeof data === 'object') {
         setServices(data);
+        markInitial('services');
       }
     });
     newSocket.on('afkUpdate', (data) => {
@@ -130,6 +151,14 @@ export function SocketProvider({ children }) {
         setMessages((prev) => [...prev.slice(-999), msg]);
       }
     });
+    newSocket.on('paymentUpdate', (data) => {
+      if (Array.isArray(data)) {
+        setPayments(data);
+        markInitial('payments');
+      } else if (data && typeof data === 'object') {
+        setPayments((prev) => [data, ...prev.filter((p) => p.id !== data.id).slice(0, 999)]);
+      }
+    });
 
     setSocket(newSocket);
 
@@ -151,6 +180,8 @@ export function SocketProvider({ children }) {
         consoleLogs,
         services,
         afkAccounts,
+        payments,
+        initialDataReady: ['stats', 'players', 'messages', 'logs', 'applications', 'console', 'services', 'payments'].every((key) => initialData[key]),
       }}
     >
       {children}

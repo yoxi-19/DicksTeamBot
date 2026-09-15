@@ -12,22 +12,21 @@ import { hexToDecimal } from '../../shared/types.js';
 export function buildVerifyPanelEmbed() {
   const colors = configService.getColors();
   const primaryColor = colors.primary || 'AEC6CF';
-  const botName = configService.env.minecraftUsername || 'WindBot';
+  const botName = configService.env.minecraftUsername || 'DicksBot';
 
   return new EmbedBuilder()
     .setColor(hexToDecimal(primaryColor))
     .setTitle('🔐 DICKS | Konto-Verifizierung')
     .setDescription(
       'Willkommen auf dem offiziellen **DICKS** Discord-Server!\n\n' +
-      'Um Zugriff auf alle Kanaele zu erhalten und deine Team-Funktionen freizuschalten, ' +
-      'musst du dein Discord-Konto mit deinem Minecraft-Konto verbinden.\n\n' +
+      'Um dem Team beizutreten, musst du deinen Minecraft-Account verknuepfen und die Team-Gebühr bezahlen.\n\n' +
       '**So funktioniert es:**\n' +
-      '1. Klicke unten auf den Button **"Verbinden"**.\n' +
-      '2. Gib deinen exakten Minecraft-Namen (IGN) ein.\n' +
-      '3. Du erhaeltst einen 6-stelligen Code (gueltig fuer 5 Minuten).\n' +
-      '4. Verbinde dich mit dem Minecraft-Server und schreibe im Chat:\n' +
-      `   \`/msg ${botName} <DEIN_CODE>\`\n\n` +
-      '*Dein Discord-Nickname wird automatisch an deinen Spielernamen angepasst.*',
+      '1. Klicke unten auf **"✅ Beitreten"**.\n' +
+      '2. Schreib deinen Minecraft-Namen (IGN) in die DM.\n' +
+      '3. Verbinde dich mit dem MC-Server und sende den Code im Chat.\n' +
+      '4. Bezahle die Team-Gebühr im MC-Server.\n' +
+      '5. Das Team-Spielautomatisch!\n\n' +
+      '*Alles passiert in deinen Direct Messages.*',
     )
     .setFooter({ text: 'Team DICKS Bot • Automatische Verifizierung' })
     .setTimestamp();
@@ -40,9 +39,8 @@ export function buildVerifyPanelEmbed() {
 export function buildVerifyPanelRow() {
   const button = new ButtonBuilder()
     .setCustomId('btn_verify_start')
-    .setLabel('Verbinden')
-    .setStyle(ButtonStyle.Primary)
-    .setEmoji('🔗');
+    .setLabel('Beitreten')
+    .setStyle(ButtonStyle.Success);
 
   return new ActionRowBuilder().addComponents(button);
 }

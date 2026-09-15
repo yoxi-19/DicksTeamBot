@@ -41,8 +41,11 @@ export default {
 
 /**
  * Registriert alle Slash-Befehle beim Discord-API.
+ * Mit Wiederholung: Werden parallele Sessions/Session-Kills dazwischen,
+ * wird es nach 30s und 60s erneut versucht statt still zu scheitern.
  */
-async function registerCommands(client, bot) {
+async function registerCommands(client, bot, attempt = 1) {
+  const MAX_ATTEMPTS = 3;
   const guildId = process.env.DISCORD_GUILD_ID;
 
   const commandsData = [];
@@ -56,6 +59,9 @@ async function registerCommands(client, bot) {
   }
 
   try {
+    if (!client.token || !client.isReady()) {
+      throw new Error('Client-Session nicht bereit (parallele Anmeldung?)');
+    }
     if (guildId) {
       // Guild-spezifisch (schneller, fuer Development)
       const guild = await client.guilds.fetch(guildId);
@@ -67,6 +73,16 @@ async function registerCommands(client, bot) {
       logger.info(`[Discord] ${commandsData.length} globale Befehle registriert.`);
     }
   } catch (err) {
-    logger.error(`[Discord] Befehlsregistrierung fehlgeschlagen: ${err.message}`);
+    if (attempt < MAX_ATTEMPTS) {
+      const delayMs = attempt * 30000;
+      logger.warn(`[Discord] Befehlsregistrierung fehlgeschlagen (Versuch ${attempt}/${MAX_ATTEMPTS}), neuer Versuch in ${delayMs / 1000}s: ${err.message}`);
+      setTimeout(() => {
+        registerCommands(client, bot, attempt + 1).catch((retryErr) => {
+          logger.error(`[Discord] Fehler bei Befehlsregistrierung: ${retryErr.message}`);
+        });
+      }, delayMs);
+    } else {
+      logger.error(`[Discord] Befehlsregistrierung fehlgeschlagen: ${err.message}`);
+    }
   }
 }

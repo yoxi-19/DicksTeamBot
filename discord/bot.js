@@ -19,12 +19,24 @@ export class DiscordBot {
 
   /**
    * Initialisiert den Discord-Client und laedt Befehle/Events.
+   * Idempotent: ein vorhandener Client wird vorher zerstoert, damit nie
+   * zwei Sessions mit demselben Token laufen.
    */
   async start() {
     const token = configService.env.discordToken;
     if (!token) {
       logger.error('[Discord] Kein DISCORD_TOKEN konfiguriert. Bot wird nicht gestartet.');
       return false;
+    }
+
+    if (this.client) {
+      try {
+        this.client.destroy();
+      } catch {
+        // Ignorieren
+      }
+      this.client = null;
+      this.isReady = false;
     }
 
     this.client = new Client({
@@ -37,20 +49,36 @@ export class DiscordBot {
       ],
     });
 
+    // Client-Fehler abfangen statt den Prozess abstuerzen zu lassen.
+    this.client.on('error', (err) => {
+      logger.warn(`[Discord] Client-Fehler: ${err.message}`);
+    });
+
     // Befehle laden
     await this._loadCommands();
 
     // Events laden
     await this._loadEvents();
 
-    // Bot anmelden
-    try {
-      await this.client.login(token);
-      return true;
-    } catch (err) {
-      logger.error(`[Discord] Login fehlgeschlagen: ${err.message}`);
-      return false;
-  }
+    // Bot anmelden (mit Wiederholung bei Gateway-Fehlern wie 503/500)
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.client.login(token);
+        return true;
+      } catch (err) {
+        logger.error(`[Discord] Login fehlgeschlagen (Versuch ${attempt}/${maxAttempts}): ${err.message}`);
+        if (attempt >= maxAttempts) {
+          // Client nicht zerstoeren, damit discord.js-interne Reconnects
+          // nicht mit "Shard 0 not found" abbrechen.
+          return false;
+        }
+        const delayMs = attempt * 15000;
+        logger.info(`[Discord] Neuer Login-Versuch in ${delayMs / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    return false;
   }
 
   /**

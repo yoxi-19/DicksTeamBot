@@ -9,6 +9,7 @@ import ChatPage from './pages/ChatPage.jsx';
 import LogsPage from './pages/LogsPage.jsx';
 import ConsolePage from './pages/ConsolePage.jsx';
 import AfkPage from './pages/AfkPage.jsx';
+import PaymentsPage from './pages/PaymentsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
 function ProtectedRoute({ children }) {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="logs" element={<LogsPage />} />
         <Route path="console" element={<ConsolePage />} />
         <Route path="afk" element={<AfkPage />} />
+        <Route path="payments" element={<PaymentsPage />} />
         <Route path="einstellungen" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />

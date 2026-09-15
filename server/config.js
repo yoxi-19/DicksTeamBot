@@ -38,7 +38,7 @@ class ConfigService extends EventEmitter {
       discordClientId: process.env.DISCORD_CLIENT_ID || '',
       minecraftHost: process.env.MINECRAFT_HOST || 'localhost',
       minecraftPort: Number(process.env.MINECRAFT_PORT || 25565),
-      minecraftUsername: process.env.MINECRAFT_USERNAME || 'WindBot',
+      minecraftUsername: process.env.MINECRAFT_USERNAME || 'DicksBot',
       minecraftPassword: process.env.MINECRAFT_PASSWORD || '',
       minecraftAuth: process.env.MINECRAFT_AUTH || 'microsoft',
       minecraftVersion: process.env.MINECRAFT_VERSION || '',
@@ -51,6 +51,10 @@ class ConfigService extends EventEmitter {
       adminUser: process.env.DASHBOARD_ADMIN_USER || 'admin',
       adminPassword: process.env.DASHBOARD_ADMIN_PASSWORD || 'admin123',
       logLevel: process.env.LOG_LEVEL || 'info',
+      roleVerified: process.env.ROLE_VERIFIED || '',
+      roleTeam: process.env.ROLE_TEAM || '',
+      roleJoin: process.env.ROLE_JOIN || '',
+      roleAdmin: process.env.ROLE_ADMIN || '',
     };
 
     this._loaded = true;
@@ -62,9 +66,22 @@ class ConfigService extends EventEmitter {
     const all = db.listSettings();
     this.cache = {};
     for (const key of SETTING_KEYS) {
-      const value = all[`${SETTINGS_PREFIX}${key}`];
+      let value = all[`${SETTINGS_PREFIX}${key}`];
       // Nur bekannte Schluessel uebernehmen, fehlende mit Defaults ueberschreiben.
-      this.cache[key] = value !== undefined ? value : DEFAULT_SETTINGS[key];
+      if (value === undefined) {
+        value = DEFAULT_SETTINGS[key];
+      }
+      // Patterns: RegExp-Objekte in String-Quellen konvertieren (durch JSON.stringify Bug)
+      if (key === 'patterns' && typeof value === 'object' && value !== null) {
+        const converted = {};
+        for (const [k, v] of Object.entries(value)) {
+          converted[k] = v instanceof RegExp ? v.source : String(v);
+        }
+        // Korrigierte Werte sofort in DB schreiben
+        db.setSetting(`${SETTINGS_PREFIX}${key}`, converted);
+        value = converted;
+      }
+      this.cache[key] = value;
     }
   }
 
@@ -73,7 +90,16 @@ class ConfigService extends EventEmitter {
     for (const key of SETTING_KEYS) {
       const existing = db.getSetting(`${SETTINGS_PREFIX}${key}`, undefined);
       if (existing === undefined && DEFAULT_SETTINGS[key] !== undefined) {
-        db.setSetting(`${SETTINGS_PREFIX}${key}`, DEFAULT_SETTINGS[key]);
+        let value = DEFAULT_SETTINGS[key];
+        // Patterns: RegExp-Objekte in String-Quellen konvertieren
+        if (key === 'patterns' && typeof value === 'object' && value !== null) {
+          const converted = {};
+          for (const [k, v] of Object.entries(value)) {
+            converted[k] = v instanceof RegExp ? v.source : v;
+          }
+          value = converted;
+        }
+        db.setSetting(`${SETTINGS_PREFIX}${key}`, value);
       }
     }
   }
@@ -124,8 +150,16 @@ class ConfigService extends EventEmitter {
     }
 
     for (const [key, value] of Object.entries(toWrite)) {
-      db.setSetting(`${SETTINGS_PREFIX}${key}`, value);
-      this.cache[key] = value;
+      // RegExp-Objekte in String-Quelle konvertieren
+      let finalValue = value;
+      if (key === 'patterns' && typeof value === 'object' && value !== null) {
+        finalValue = {};
+        for (const [k, v] of Object.entries(value)) {
+          finalValue[k] = v instanceof RegExp ? v.source : v;
+        }
+      }
+      db.setSetting(`${SETTINGS_PREFIX}${key}`, finalValue);
+      this.cache[key] = finalValue;
     }
 
     if (Object.keys(toWrite).length > 0) {
@@ -151,6 +185,7 @@ class ConfigService extends EventEmitter {
       case 'channelLogs':
       case 'channelVerify':
       case 'channelTeam':
+      case 'channelJoinLogs':
         // IDs koennen leer oder eine Snowflake sein.
         if (value !== '' && value !== null && !/^\d{15,20}$/.test(String(value))) {
           return 'Muss leer oder eine gueltige ID (Snowflake) sein.';
@@ -176,16 +211,53 @@ class ConfigService extends EventEmitter {
       case 'team':
         if (value === null || typeof value !== 'object') return 'Muss ein Objekt sein.';
         return null;
+      case 'teamRanks':
+        if (value === null || typeof value !== 'object') return 'Muss ein Objekt sein.';
+        if (value.count !== undefined && (!Number.isInteger(value.count) || value.count < 1 || value.count > 10)) {
+          return 'count muss eine ganze Zahl zwischen 1 und 10 sein.';
+        }
+        for (const field of ['roles', 'ownerRoles']) {
+          if (value[field] !== undefined) {
+            if (value[field] === null || typeof value[field] !== 'object') return `${field} muss ein Objekt sein.`;
+            for (const [rankKey, roleVal] of Object.entries(value[field])) {
+              if (!/^\d+$/.test(rankKey)) return `Rang "${rankKey}" muss eine Zahl sein.`;
+              if (roleVal !== '' && roleVal !== null && !/^\d{15,20}$/.test(String(roleVal))) {
+                return `Rolle fuer Rang ${rankKey} muss leer oder eine gueltige ID (Snowflake) sein.`;
+              }
+            }
+          }
+        }
+        if (value.owners !== undefined) {
+          if (value.owners === null || typeof value.owners !== 'object') return 'owners muss ein Objekt sein.';
+          for (const [rankKey, ownerVal] of Object.entries(value.owners)) {
+            if (!/^\d+$/.test(rankKey)) return `Rang "${rankKey}" muss eine Zahl sein.`;
+            if (ownerVal !== '' && ownerVal !== null && !/^\d{15,20}$/.test(String(ownerVal))) {
+              return `Owner fuer Rang ${rankKey} muss leer oder eine gueltige Discord-ID sein.`;
+            }
+          }
+        }
+        return null;
       case 'timeouts':
         if (value === null || typeof value !== 'object') return 'Muss ein Objekt sein.';
+        if (value.paymentTimeoutMs !== undefined && (typeof value.paymentTimeoutMs !== 'number' || value.paymentTimeoutMs < 60000)) {
+          return 'paymentTimeoutMs muss eine Zahl >= 60000 sein.';
+        }
+        return null;
+      case 'payment':
+        if (value === null || typeof value !== 'object') return 'Muss ein Objekt sein.';
+        if (value.amount !== undefined && (typeof value.amount !== 'number' || value.amount < 0)) {
+          return 'amount muss eine positive Zahl sein.';
+        }
         return null;
       case 'patterns':
         if (value === null || typeof value !== 'object') return 'Muss ein Objekt mit Regex-Strings sein.';
         for (const [patternKey, patternVal] of Object.entries(value)) {
-          if (typeof patternVal !== 'string') {
+          // RegExp-Objekte in String wandeln
+          const patternStr = patternVal instanceof RegExp ? patternVal.source : String(patternVal);
+          if (typeof patternStr !== 'string') {
             return `Muster "${patternKey}" muss ein String sein.`;
           }
-          const regexError = validateRegex(patternVal);
+          const regexError = validateRegex(patternStr);
           if (regexError) {
             return `Muster "${patternKey}" ist kein gueltiger Regex: ${regexError}`;
           }
@@ -205,7 +277,7 @@ class ConfigService extends EventEmitter {
     const out = {};
     for (const [key, source] of Object.entries(patterns)) {
       try {
-        out[key] = new RegExp(source);
+        out[key] = new RegExp(source, 'i');
       } catch {
         out[key] = /(?!x)x/; // never matches
       }
@@ -228,7 +300,9 @@ class ConfigService extends EventEmitter {
    */
   getRoleId(which) {
     const v = this.get(which, '');
-    return v ? String(v) : '';
+    // Dashboard-Einstellungen haben Vorrang; die .env dient als zuverlässiger
+    // Fallback für Deployments ohne vorherige Dashboard-Konfiguration.
+    return v ? String(v) : (this.env[which] ? String(this.env[which]) : '');
   }
 
   /**

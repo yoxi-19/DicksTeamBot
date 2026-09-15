@@ -13,6 +13,14 @@ export function setInstances(discord, bridge) {
   bridgeInstance = bridge;
 }
 
+/**
+ * Gibt den Discord-Client zurueck (oder null wenn offline).
+ * @returns {import('discord.js').Client|null}
+ */
+export function getDiscordClient() {
+  return discordBot && typeof discordBot.getClient === 'function' ? discordBot.getClient() : null;
+}
+
 export function getStatus() {
   return {
     discord: {
@@ -39,9 +47,19 @@ router.post('/discord/start', authenticateToken, requireAdmin, async (req, res) 
       return res.json({ ok: true, message: 'Discord-Bot laeuft bereits.' });
     }
     logger.info('[Services] Discord-Bot wird gestartet...');
+    // Alte Instanz immer erst sauber beenden, damit nie zwei Clients mit
+    // demselben Token gleichzeitig laufen (Session-Kills, 503er).
+    try {
+      if (discordBot) discordBot.stop();
+    } catch {
+      // Ignorieren
+    }
     const { DiscordBot } = await import('../../discord/bot.js');
     discordBot = new DiscordBot();
-    await discordBot.start();
+    const started = await discordBot.start();
+    if (!started) {
+      return res.status(502).json({ error: 'Discord-Bot konnte nicht gestartet werden. Bitte Token und Discord-Status pruefen.' });
+    }
     emitStatusUpdate();
     return res.json({ ok: true, message: 'Discord-Bot gestartet.' });
   } catch (err) {

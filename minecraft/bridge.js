@@ -9,7 +9,9 @@ import configService from '../server/config.js';
 import * as db from '../database/index.js';
 import { MessageCategory, LogCategory, PlayerStatus } from '../shared/types.js';
 import { completeVerification } from '../discord/verifyService.js';
-import { handleTeamJoined, handleTeamLeft } from '../discord/teamService.js';
+import { handleTeamJoined, handleTeamLeft, removeRankRoles } from '../discord/teamService.js';
+import { validatePayment, confirmPaymentAndInviteTeam, sendPaymentFailedEmbed, consumePendingPaymentConfirm, scheduleRefundAfterInviteError } from '../discord/paymentService.js';
+import { syncNickname, grantRole, removeRole } from '../discord/helpers.js';
 
 export class MinecraftBridge {
   constructor(discordClient = null) {
@@ -28,6 +30,11 @@ export class MinecraftBridge {
     this.lastTimePacket = null;
     this.tickSamples = [];
 
+    // Bereits verarbeitete Verify-Codes (Code+Sender -> Timestamp).
+    // Verhindert: Erfolg + Fehler gleichzeitig, wenn dieselbe Nachricht
+    // als Chat-Event UND als Whisper-Event ankommt.
+    this.processedCodes = new Map();
+
     // Listener fuer Event-Bus Aktionen
     this._setupBusListeners();
   }
@@ -44,9 +51,34 @@ export class MinecraftBridge {
    * Registriert Event-Bus-Abonnements fuer Befehle von aussen (Discord, Dashboard).
    */
   _setupBusListeners() {
-    eventBus.on('minecraft:teamInvite', ({ ign }) => {
+    // Ausstehende Team-Einladungen, um Server-Antworten zuordnen zu koennen:
+    // ignLower -> { discordId, sentAt }
+    if (!this.pendingTeamInvites) this.pendingTeamInvites = new Map();
+
+    eventBus.on('minecraft:teamInvite', ({ ign, discordId }) => {
       logger.info(`[Minecraft] Sende Team-Einladung fuer: ${ign}`);
-      this.sendCommand(`/team invite ${ign}`);
+      if (ign) {
+        this.pendingTeamInvites.set(String(ign).toLowerCase(), {
+          discordId: discordId || null,
+          sentAt: Date.now(),
+        });
+      }
+      const sent = this.sendCommand(`/team invite ${ign}`);
+      if (!sent) {
+        // Bot offline: Invite ging NICHT raus. Ausstehende Erfolgsmeldung
+        // unterdruecken und dem User ehrlich sagen, was los ist.
+        logger.error(`[Minecraft] Team-Einladung fuer ${ign} NICHT gesendet (Bot offline).`);
+        this._notifyTeamInviteNotSent(ign, discordId);
+        return;
+      }
+      // Erfolgreich gesendet -> im Dashboard loggen (kein Channel-Spam,
+      // die Zahlung bestaetigt-Meldung steht schon im Kanal).
+      const entry = db.addLog({
+        category: LogCategory.TEAM,
+        title: 'Team-Einladung gesendet',
+        description: `Einladung fuer **${ign}** im Spiel gesendet.`,
+      });
+      eventBus.emitToDashboard('logUpdate', entry);
     });
 
     eventBus.on('minecraft:sendCommand', (cmd) => {
@@ -73,7 +105,7 @@ export class MinecraftBridge {
 
     const host = configService.env.minecraftHost || 'localhost';
     const port = configService.env.minecraftPort || 25565;
-    const username = configService.env.minecraftUsername || 'WindBot';
+    const username = configService.env.minecraftUsername || 'DicksBot';
     const password = configService.env.minecraftPassword || undefined;
     const auth = configService.env.minecraftAuth || 'offline';
     const version = configService.env.minecraftVersion || false;
@@ -242,6 +274,15 @@ export class MinecraftBridge {
   }
 
   /**
+   * Sendet eine private Nachricht an einen Spieler.
+   * @param {string} target - Spielername
+   * @param {string} message - Nachricht
+   */
+  sendPrivateMessage(target, message) {
+    return this.sendMessage(`/msg ${target} ${message}`);
+  }
+
+  /**
    * Gibt den aktuellen Status der Bridge zurueck.
    * @returns {object}
    */
@@ -279,12 +320,33 @@ export class MinecraftBridge {
 
     bot.on('spawn', () => {
       logger.info('[Minecraft] Bot in der Welt gespawnt.');
+      // Online-Status mit der echten Spielerliste abgleichen (loest
+      // veraltete is_online-Werte, z.B. nach verpassten Join/Leave-Events).
+      const reconcile = () => {
+        try {
+          if (!this.isConnected || !this.bot || !this.bot.players) return;
+          const onlineIgns = Object.keys(this.bot.players);
+          db.reconcileOnlineStates(onlineIgns);
+          eventBus.emitToDashboard('playerUpdate', db.listUsers());
+        } catch (err) {
+          logger.warn(`[Minecraft] Online-Abgleich fehlgeschlagen: ${err.message}`);
+        }
+      };
+      reconcile();
+      // Spielerliste ist direkt nach dem Spawn ggf. noch unvollstaendig.
+      setTimeout(reconcile, 15000);
       this._broadcastStatus();
     });
 
     bot.on('end', (reason) => {
       this.isConnected = false;
       logger.warn(`[Minecraft] Verbindung getrennt: ${reason}`);
+      try {
+        db.setAllUsersOffline();
+        eventBus.emitToDashboard('playerUpdate', db.listUsers());
+      } catch {
+        // Ignorieren
+      }
       this._broadcastStatus();
       this._scheduleReconnect();
     });
@@ -293,6 +355,12 @@ export class MinecraftBridge {
       this.isConnected = false;
       const parsedReason = typeof reason === 'string' ? reason : JSON.stringify(reason);
       logger.warn(`[Minecraft] Vom Server gekickt: ${parsedReason}`);
+      try {
+        db.setAllUsersOffline();
+        eventBus.emitToDashboard('playerUpdate', db.listUsers());
+      } catch {
+        // Ignorieren
+      }
       this._broadcastStatus();
       this._scheduleReconnect();
     });
@@ -329,6 +397,13 @@ export class MinecraftBridge {
       if (!rawText) return;
       this._handleRawMessage(rawText);
     });
+
+    // Whisper/Nachrichten an den Bot (z.B. "/msg Bot 123456")
+    bot.on('whisper', (username, message) => {
+      if (!username) return;
+      logger.info(`[Minecraft] Whisper von "${username}": ${message}`);
+      this._handleRawMessage(`<${username}> ${message}`);
+    });
   }
 
   /**
@@ -342,6 +417,23 @@ export class MinecraftBridge {
     let author = null;
     let messageContent = text;
 
+    // Team-Einladungs-Antworten vom Server immer zuerst pruefen
+    // (z.B. "TEAM » xxx is already in a team." oder "No entity was found").
+    // Der exakte Server-Text wird mit Error-Code an den Discord-User weitergegeben.
+    if (this.discordClient && (await this._handleTeamInviteResponse(text))) {
+      handledCategory = MessageCategory.SYSTEM;
+    }
+
+    // IMMER zuerst auf Verifizierungscode pruefen (egal welches Format)
+    // Code ist nur 5 Minuten gueltig und der Absender-IGN wird geprueft.
+    const codeMatch = text.match(/\b\d{6}\b/);
+    if (codeMatch && this.discordClient) {
+      const senderName = this._extractSenderFromMessage(text, patterns);
+      if (senderName) {
+        await this._checkVerificationCode(codeMatch[0], senderName);
+      }
+    }
+
     // 1. Spieler-Chat Pruefung
     if (patterns.PLAYER_CHAT && patterns.PLAYER_CHAT.test(text)) {
       const match = text.match(patterns.PLAYER_CHAT);
@@ -350,6 +442,8 @@ export class MinecraftBridge {
       handledCategory = MessageCategory.CHAT;
     }
     // 2. Private Nachricht / Whisper an Bot
+    // Hinweis: Der Code-Check laeuft bereits universell oben, hier kein
+    // zweiter Aufruf (sonst kaemen Erfolg + Fehler gleichzeitig).
     else if (patterns.PRIVATE_MESSAGE && patterns.PRIVATE_MESSAGE.test(text)) {
       handledCategory = MessageCategory.PRIVATE;
       const match = text.match(patterns.PRIVATE_MESSAGE);
@@ -357,7 +451,6 @@ export class MinecraftBridge {
       const body = match ? match[2] : text;
       author = sender;
       messageContent = body;
-      await this._checkVerificationCode(body, sender);
     }
     // 3. Join-Erkennung
     else if (patterns.JOIN && patterns.JOIN.test(text)) {
@@ -402,14 +495,22 @@ export class MinecraftBridge {
         await handleTeamLeft(this.discordClient, playerName);
       }
     }
-    // 8. Zahlungs- / Spenden-Erkennung
-    else if (patterns.PAYMENT && patterns.PAYMENT.test(text)) {
+    // 8. Zahlungs- / Transfer-Erkennung. Die Server-Ausgaben unterscheiden
+    // sich je nach Sprache/Plugin; die Daten werden deshalb separat robust
+    // extrahiert statt auf feste Regex-Gruppen zu vertrauen.
+    else if (this._extractPaymentData(text, patterns)) {
       handledCategory = MessageCategory.PAYMENT;
-      db.addLog({
-        category: LogCategory.PAYMENT,
-        title: 'Zahlung im Spiel erkannt',
-        description: text,
-      });
+      const payment = this._extractPaymentData(text, patterns);
+      if (payment && this.discordClient) {
+        await this._handlePayment(payment.sender, payment.amount, payment.recipient, text);
+      } else {
+        const payEntry = db.addLog({
+          category: LogCategory.PAYMENT,
+          title: 'Zahlung im Spiel erkannt',
+          description: text,
+        });
+        eventBus.emitToDashboard('logUpdate', payEntry);
+      }
     }
     // 9. Auktion / Handel
     else if (patterns.AUCTION && patterns.AUCTION.test(text)) {
@@ -449,6 +550,32 @@ export class MinecraftBridge {
       author,
       createdAt: msgRecord.created_at,
     });
+  }
+
+  /**
+   * Liest eine Zahlungsbestätigung aus verbreiteten Minecraft-Serverformaten.
+   * Beim "You received"-Format sieht der Empfänger-Bot die Transaktion;
+   * der konfigurierte Empfänger ist dort daher eindeutig.
+   */
+  _extractPaymentData(text, patterns) {
+    const configuredRecipient = configService.get('payment', {}).recipient || configService.env.minecraftUsername || 'DicksTeamBank';
+    const parseAmount = (value) => Number.parseInt(String(value).replace(/[^\d]/g, ''), 10);
+    let match = text.match(/you\s+received\s+\$?([\d.,]+)\s+from\s+([A-Za-z0-9_]{3,16})/i);
+    if (match) return { amount: parseAmount(match[1]), sender: match[2], recipient: configuredRecipient };
+
+    match = text.match(/([A-Za-z0-9_]{3,16})\s+(?:paid|sent|transferred)\s+\$?([\d.,]+)(?:\s+coins?)?\s+to\s+([A-Za-z0-9_]{3,16})/i);
+    if (match) return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
+
+    match = text.match(/([A-Za-z0-9_]{3,16})\s+hat\s+\$?([\d.,]+)(?:\s+coins?)?\s+(?:an\s+)?([A-Za-z0-9_]{3,16})\s+(?:bezahlt|ueberwiesen|überwiesen)/i);
+    if (match) return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
+
+    // Eigene Serverausgabe kann über PAYMENT konfiguriert werden. Das Format
+    // muss dabei Sender, Betrag und Empfänger in dieser Reihenfolge enthalten.
+    match = patterns.PAYMENT ? text.match(patterns.PAYMENT) : null;
+    if (match?.[1] && match?.[2] && match?.[3]) {
+      return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
+    }
+    return null;
   }
 
   /**
@@ -494,6 +621,228 @@ export class MinecraftBridge {
   }
 
   /**
+   * Wertet Server-Antworten auf "/team invite <IGN>" aus und schickt dem
+   * betroffenen Discord-User den exakten Server-Text plus Error-Code.
+   * @param {string} text
+   * @returns {Promise<boolean>} true wenn die Nachricht eine Team-Antwort war
+   */
+  async _handleTeamInviteResponse(text) {
+    const lower = text.toLowerCase();
+    const isTeamMsg = lower.includes('team »') || lower.includes('team:') || lower.startsWith('team ');
+    if (!isTeamMsg) return false;
+
+    let errorCode = null;
+    let hint = '';
+    let ign = null;
+
+    const alreadyMatch = text.match(/([A-Za-z0-9_]{3,16})\s+is\s+already\s+in\s+a\s+team/i);
+    if (alreadyMatch) {
+      errorCode = 'TEAM_ALREADY_IN_TEAM';
+      ign = alreadyMatch[1];
+      hint = 'Der Spieler ist bereits in einem Team. Er muss sein aktuelles Team erst verlassen, danach kann die Einladung erneut gesendet werden.';
+    } else if (/no\s+entity\s+(?:was|were)\s+found/i.test(text)) {
+      errorCode = 'TEAM_PLAYER_NOT_FOUND';
+      const nameMatch = text.match(/([A-Za-z0-9_]{3,16})/);
+      // Bei "No entity was found" steht oft kein Name dabei -> letzte Einladung nehmen
+      ign = nameMatch && nameMatch[1].toLowerCase() !== 'team' ? nameMatch[1] : this._lastInvitedIgn();
+      hint = 'Der Spieler wurde auf dem Server nicht gefunden. Pruefe die Schreibweise und ob der Spieler online ist.';
+    } else if (/not\s+found|is\s+not\s+online|unknown\s+player/i.test(text)) {
+      errorCode = 'TEAM_PLAYER_NOT_FOUND';
+      const nameMatch = text.match(/([A-Za-z0-9_]{3,16})\s+(?:not\s+found|is\s+not\s+online)/i);
+      ign = nameMatch ? nameMatch[1] : this._lastInvitedIgn();
+      hint = 'Der Spieler wurde auf dem Server nicht gefunden. Pruefe die Schreibweise und ob der Spieler online ist.';
+    } else if (/invit/i.test(text)) {
+      // Erfolg ("invited ...") wird von der bestehenden TEAM_INVITED-Erkennung geloggt.
+      return false;
+    } else {
+      return false;
+    }
+
+    // Discord-User aufloesen: erst ausstehende Einladung, dann DB per IGN
+    let discordId = null;
+    let ownInvite = false;
+    if (ign && this.pendingTeamInvites) {
+      const pending = this.pendingTeamInvites.get(String(ign).toLowerCase());
+      if (pending && Date.now() - pending.sentAt < 5 * 60 * 1000) {
+        ownInvite = true;
+        if (pending?.discordId) discordId = pending.discordId;
+      }
+    }
+    if (!discordId && ign) {
+      const user = db.findUserByIgn(ign);
+      if (user?.discord_id) discordId = user.discord_id;
+    }
+    if (!discordId && this.pendingTeamInvites && this.pendingTeamInvites.size > 0) {
+      // Fallback: juengste Einladung (fuer "No entity was found" ohne Namen)
+      let newest = null;
+      for (const entry of this.pendingTeamInvites.values()) {
+        if (!newest || entry.sentAt > newest.sentAt) newest = entry;
+      }
+      if (newest?.discordId && Date.now() - newest.sentAt < 2 * 60 * 1000) {
+        ownInvite = true;
+        discordId = newest.discordId;
+      }
+    }
+
+    // Schutz: Nur Antworten auf EIGENE Einladungen werten. Fremde
+    // TEAM-Nachrichten anderer Spieler duerfen weder DMs noch Refunds ausloesen.
+    if (!ownInvite) {
+      logger.info(`[Minecraft] TEAM-Nachricht ohne eigene Einladung ignoriert: ${text}`);
+      return false;
+    }
+
+    // Alte Eintraege aufraeumen
+    if (this.pendingTeamInvites) {
+      for (const [key, entry] of this.pendingTeamInvites) {
+        if (Date.now() - entry.sentAt > 5 * 60 * 1000) this.pendingTeamInvites.delete(key);
+      }
+    }
+
+    logger.warn(`[Minecraft] Team-Einladung Fehler ${errorCode}: ${text}`);
+
+    const errorEntry = db.addLog({
+      category: LogCategory.TEAM,
+      title: `Team-Einladung Fehler (${errorCode})`,
+      description: `${ign ? `Spieler **${ign}**: ` : ''}\`${text}\``,
+    });
+    eventBus.emitToDashboard('logUpdate', errorEntry);
+
+    if (discordId && this.discordClient) {
+      // Ausstehende Erfolgsmeldung unterdruecken: Bei einem Invite-Fehler
+      // kommt NUR diese EINE finale Nachricht (kein "Zahlung erkannt" davor).
+      const pending = consumePendingPaymentConfirm(discordId);
+      const amountLine = pending?.payment?.amount
+        ? `Deine Zahlung (**$${pending.payment.amount.toLocaleString('de-DE')}**) wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`
+        : `Deine Zahlung wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`;
+
+      // Refund-Timer (10 Min): Tut der Spieler nichts, wird die bestaetigte
+      // Zahlung automatisch per /pay zurueckgezahlt. Retry/Join stornieren ihn.
+      const confirmedPayment = db.findLatestConfirmedPayment(discordId);
+      if (confirmedPayment) {
+        scheduleRefundAfterInviteError(this.discordClient, discordId, confirmedPayment);
+      }
+      try {
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
+        const user = await this.discordClient.users.fetch(discordId);
+        if (user) {
+          const dm = await user.createDM();
+          const embed = new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle('Team-Einladung fehlgeschlagen')
+            .setDescription(
+              amountLine +
+              `**Fehlercode:** \`${errorCode}\`\n\n` +
+              `**Server-Antwort:**\n\`\`\`\n${text}\n\`\`\`\n` +
+              `${hint}`,
+            )
+            .setTimestamp();
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId('btn_team_invite_retry')
+              .setLabel('Nochmal')
+              .setStyle(ButtonStyle.Primary),
+          );
+          await dm.send({ embeds: [embed], components: [row] });
+        }
+      } catch (err) {
+        logger.warn(`[Minecraft] Konnte Team-Fehler-DM nicht senden: ${err.message}`);
+      }
+    }
+    return true;
+  }
+
+    /**
+   * Meldet dem User, dass die Einladung gar nicht gesendet werden konnte
+   * (Bot offline). Unterdrueckt die ausstehende Erfolgsmeldung.
+   */
+  async _notifyTeamInviteNotSent(ign, discordId) {
+    let targetId = discordId || null;
+    if (!targetId && ign) {
+      const user = db.findUserByIgn(ign);
+      if (user?.discord_id) targetId = user.discord_id;
+    }
+    if (targetId) consumePendingPaymentConfirm(targetId);
+
+    // Auch hier Refund-Timer starten: Passiert 10 Min nichts, kommt das
+    // Geld automatisch zurueck (mit Offline-Retry im Refund selbst).
+    if (targetId && this.discordClient) {
+      const confirmedPayment = db.findLatestConfirmedPayment(targetId);
+      if (confirmedPayment) {
+        scheduleRefundAfterInviteError(this.discordClient, targetId, confirmedPayment);
+      }
+    }
+
+    const offlineEntry = db.addLog({
+      category: LogCategory.TEAM,
+      title: 'Team-Einladung nicht gesendet (TEAM_BOT_OFFLINE)',
+      description: `Bot ist offline – keine Einladung fuer **${ign}** gesendet.`,
+    });
+    eventBus.emitToDashboard('logUpdate', offlineEntry);
+
+    if (targetId && this.discordClient) {
+      try {
+        const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
+        const user = await this.discordClient.users.fetch(targetId);
+        if (user) {
+          const dm = await user.createDM();
+          const embed = new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle('Team-Einladung nicht gesendet')
+            .setDescription(
+              `Deine Zahlung wurde erkannt, aber der Bot ist gerade nicht auf dem Minecraft-Server.\n\n` +
+              `**Fehlercode:** \`TEAM_BOT_OFFLINE\`\n\n` +
+              `Druecke Nochmal, sobald der Bot wieder online ist.`,
+            )
+            .setTimestamp();
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId('btn_team_invite_retry')
+              .setLabel('Nochmal')
+              .setStyle(ButtonStyle.Primary),
+          );
+          await dm.send({ embeds: [embed], components: [row] });
+        }
+      } catch (err) {
+        logger.warn(`[Minecraft] Konnte Offline-Fehler-DM nicht senden: ${err.message}`);
+      }
+    }
+  }
+
+  /** Juengste eingeladene IGN (Fallback wenn Server-Antwort keinen Namen enthaelt). */
+  _lastInvitedIgn() {
+    if (!this.pendingTeamInvites || this.pendingTeamInvites.size === 0) return null;
+    let newestKey = null;
+    let newest = null;
+    for (const [key, entry] of this.pendingTeamInvites) {
+      if (!newest || entry.sentAt > newest.sentAt) {
+        newest = entry;
+        newestKey = key;
+      }
+    }
+    if (newest && Date.now() - newest.sentAt < 2 * 60 * 1000) return newestKey;
+    return null;
+  }
+
+  /**
+   * Extrahiert den Absender-Namen aus jeder Art von Chat-Nachricht.
+   * Funktioniert mit <Name>, [Name -> ...], und freiem Text.
+   * @param {string} text
+   * @param {object} patterns
+   * @returns {string|null}
+   */
+  _extractSenderFromMessage(text, patterns) {
+    // <Spieler> Nachricht
+    const chatMatch = text.match(/^<([^>]+)>/);
+    if (chatMatch) return chatMatch[1].trim();
+
+    // [Spieler -> Empfaenger] Nachricht
+    const pmMatch = text.match(/^\[([^\]]+)\s*->/);
+    if (pmMatch) return pmMatch[1].trim();
+
+    return null;
+  }
+
+  /**
    * Prueft, ob ein Text einen 6-stelligen Verifizierungscode enthaelt.
    * @param {string} text
    * @param {string|null} senderIgn
@@ -503,54 +852,100 @@ export class MinecraftBridge {
     if (!codeMatch) return;
 
     const code = codeMatch[0];
-    logger.info(`[Minecraft] Verifizierungscode erkannt: ${code} von "${senderIgn || 'unbekannt'}"`);
+    const cleanSender = senderIgn ? senderIgn.trim() : null;
+
+    // Doppelverarbeitung verhindern (Chat-Event + Whisper-Event fuer dieselbe Nachricht)
+    const dedupeKey = `${code}:${(cleanSender || '').toLowerCase()}`;
+    const lastSeen = this.processedCodes.get(dedupeKey);
+    if (lastSeen && Date.now() - lastSeen < 15000) {
+      logger.info(`[Minecraft] Code ${code} von "${cleanSender || 'unbekannt'}" bereits verarbeitet – Ueberspringe Doppel.`);
+      return;
+    }
+    this.processedCodes.set(dedupeKey, Date.now());
+    for (const [key, ts] of this.processedCodes) {
+      if (Date.now() - ts > 60000) this.processedCodes.delete(key);
+    }
+
+    logger.info(`[Minecraft] Verifizierungscode erkannt: ${code} von "${cleanSender || 'unbekannt'}"`);
 
     if (!this.discordClient) {
       logger.warn('[Minecraft] Discord-Client noch nicht verfuegbar fuer Verifizierung.');
       return;
     }
 
-    const result = await completeVerification(this.discordClient, code, senderIgn);
+    const result = await completeVerification(this.discordClient, code, cleanSender);
+
     if (result.ok) {
-      if (senderIgn) {
-        this.sendMessage(`/msg ${senderIgn} Dein Discord-Konto wurde erfolgreich verifiziert!`);
+      if (cleanSender) {
+        this.sendMessage(`/msg ${cleanSender} Dein Discord-Konto wurde erfolgreich verifiziert!`);
       }
+      // Keine Erfolgs-DM hier: verifyService.completeVerification schickt bereits
+      // in der richtigen Reihenfolge erst die Bestaetigung, dann die Zahlungsaufforderung.
     } else {
-      if (senderIgn) {
-        if (result.message === 'MISMATCH') {
-          this.sendMessage(`/msg ${senderIgn} Verifizierung fehlgeschlagen. Der Code gehoert nicht zu diesem Konto. Bitte pruefe im Discord, ob du den richtigen Minecraft-Namen angegeben hast.`);
-          // DM mit Retry-Button senden
-          this._sendVerifyRetryDm(result.discordId);
-        } else {
-          this.sendMessage(`/msg ${senderIgn} Verifizierung fehlgeschlagen: ${result.message}`);
-        }
+      if (cleanSender) {
+        this.sendMessage(`/msg ${cleanSender} Verifizierung fehlgeschlagen. Bitte pruefe im Discord, ob du den richtigen Minecraft-Namen angegeben hast.`);
+      }
+      // Fehler-DM senden (mit Nochmal-Button fuer neuen Versuch).
+      // Faellt der Code weg (ungueltig/abgelaufen), gibt es keine discordId
+      // aus dem Code – dann wird der Sender per IGN aufgeloest, damit der
+      // User trotzdem eine Fehler-DM bekommt statt gar nichts.
+      let targetDiscordId = result.discordId || null;
+      if (!targetDiscordId && cleanSender) {
+        const userByIgn = db.findUserByIgn(cleanSender);
+        if (userByIgn?.discord_id) targetDiscordId = userByIgn.discord_id;
+      }
+      if (targetDiscordId) {
+        const isMismatch = result.message === 'MISMATCH';
+        await this._sendVerifyResult(targetDiscordId, {
+          title: 'Verifizierung fehlgeschlagen',
+          description: isMismatch
+            ? `Der eingegebene Minecraft-Name stimmt nicht mit dem Konto ueberein, das den Code gesendet hat.\n\n` +
+              `Klicke auf Nochmal und schicke dann deinen exakten Minecraft-Namen.`
+            : `Der Code ist ungueltig oder abgelaufen.\n\n` +
+              `Klicke auf Nochmal und schicke deinen exakten Minecraft-Namen, um einen neuen Code zu bekommen.`,
+          color: 'error',
+          button: { customId: 'btn_verify_retry', label: 'Nochmal' },
+        });
       }
     }
   }
 
   /**
-   * Sendet eine DM mit Retry-Button an den Discord-Nutzer bei Verifizierungsfehler.
+   * Sendet eine DM mit dem Verifizierungsergebnis.
    * @param {string} discordId
+   * @param {object} embedData - { title, description, color }
    */
-  async _sendVerifyRetryDm(discordId) {
+  async _sendVerifyResult(discordId, embedData) {
     if (!this.discordClient || !discordId) return;
     try {
+      const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
       const user = await this.discordClient.users.fetch(discordId);
       if (!user) return;
       const dm = await user.createDM();
-      const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('modal_verify_retry')
-          .setLabel('Erneut versuchen')
-          .setStyle(ButtonStyle.Primary),
-      );
-      await dm.send({
-        content: 'Dein Verifizierungscode wurde nicht akzeptiert. Der eingegebene Minecraft-Name passt nicht zum Konto, das den Code gesendet hat.\n\nBitte verifiziere dich mit dem richtigen Minecraft-Namen:',
-        components: [row],
-      });
+
+      const colorMap = { success: 0x57F287, error: 0xED4245, primary: 0xAEC6CF };
+      const embed = new EmbedBuilder()
+        .setTitle(embedData.title)
+        .setDescription(embedData.description)
+        .setColor(colorMap[embedData.color] || 0xAEC6CF)
+        .setTimestamp();
+
+      const msgOptions = { embeds: [embed] };
+
+      // Optionaler Weiter-Button
+      if (embedData.button) {
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(embedData.button.customId)
+            .setLabel(embedData.button.label)
+            .setStyle(ButtonStyle.Success),
+        );
+        msgOptions.components = [row];
+      }
+
+      await dm.send(msgOptions);
     } catch (err) {
-      logger.warn(`[Minecraft] Konnte keine DM an ${discordId} senden: ${err.message}`);
+      logger.warn(`[Minecraft] Konnte keine Verifizierungs-DM senden: ${err.message}`);
     }
   }
 
@@ -580,17 +975,50 @@ export class MinecraftBridge {
 
   /**
    * Behandelt das Verlassen eines Spielers vom Server.
+   * Entfernt Verifizierung, Rollen und setzt den Nickname zurueck.
    * @param {string} ign
    */
-  _handlePlayerLeave(ign) {
+  async _handlePlayerLeave(ign) {
     logger.info(`[Minecraft] Spieler verlassen: ${ign}`);
     const user = db.findUserByIgn(ign);
-    if (user) {
+    if (user && user.discord_id) {
+      // Status auf unverified zuruecksetzen
       db.upsertUser({
         discord_id: user.discord_id,
-        ign,
+        ign: null,
+        status: PlayerStatus.UNVERIFIED,
+        team: null,
         is_online: 0,
       });
+
+      // Discord-Rollen entfernen und Nickname zuruecksetzen
+      if (this.discordClient) {
+        try {
+          const guildId = configService.env.discordGuildId;
+          if (guildId) {
+            const guild = await this.discordClient.guilds.fetch(guildId);
+            if (guild) {
+              await removeRole(guild, user.discord_id, 'roleVerified');
+              await removeRole(guild, user.discord_id, 'roleTeam');
+              await removeRankRoles(guild, user.discord_id);
+              await syncNickname(guild, user.discord_id, '');
+            }
+          }
+        } catch (err) {
+          logger.warn(`[Minecraft] Konnte Discord-Rollen nicht entfernen fuer ${ign}: ${err.message}`);
+        }
+      }
+
+      // Benachrichtigung im Log-Kanal
+      if (this.discordClient) {
+        const { sendLogEmbed } = await import('../discord/helpers.js');
+        await sendLogEmbed(this.discordClient, {
+          category: LogCategory.VERIFY,
+          title: 'Verifizierung entfernt',
+          description: `<@${user.discord_id}> (**${ign}**) hat den Server verlassen. Verifizierung wurde automatisch entfernt.`,
+          color: 'warning',
+        });
+      }
     }
 
     eventBus.emitToDashboard('joinLeave', {
@@ -600,6 +1028,41 @@ export class MinecraftBridge {
     });
     eventBus.emitToDashboard('playerUpdate', db.listUsers());
     this._broadcastStatus();
+  }
+
+  /**
+   * Behandelt eine erkannte Zahlung aus dem Minecraft-Chat.
+   * @param {string} senderIgn
+   * @param {number} amount
+   * @param {string} recipient
+   * @param {string} chatMessage
+   */
+  async _handlePayment(senderIgn, amount, recipient, chatMessage) {
+    logger.info(`[Minecraft] Zahlung erkannt: ${senderIgn} -> ${recipient} ($${amount})`);
+
+    if (!this.discordClient) {
+      logger.warn('[Minecraft] Discord-Client nicht verfuegbar fuer Zahlungsverarbeitung.');
+      return;
+    }
+
+    const result = await validatePayment(this.discordClient, senderIgn, amount, recipient, chatMessage);
+
+    if (result.ok) {
+      // Zahlung erfolgreich -> Team-Invite ausloesen
+      await confirmPaymentAndInviteTeam(this.discordClient, result.user, result.payment);
+    } else if (['WRONG_AMOUNT', 'WRONG_RECIPIENT'].includes(result.error)) {
+      // Falscher Betrag oder Empfänger -> präzise Fehler-DM an den Spieler.
+      const user = db.findUserByIgn(senderIgn);
+      if (user && user.discord_id) {
+        await sendPaymentFailedEmbed(this.discordClient, user.discord_id, result.error, {
+          amount,
+          requiredAmount: result.requiredAmount,
+          recipient,
+          requiredRecipient: result.requiredRecipient,
+        });
+      }
+    }
+    // ANDERE Fehler (UNKNOWN_PLAYER, NOT_WAITING, NO_ACTIVE_PAYMENT) werden ignoriert
   }
 
   /**

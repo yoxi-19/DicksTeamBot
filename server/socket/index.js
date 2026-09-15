@@ -13,6 +13,40 @@ import logger from '../../shared/logger.js';
 
 let io = null;
 
+// In-Memory-Verlauf der Console-Logs (nur fuer die Anzeige, kein Persistenz-
+// Anspruch – nach einem Neustart beginnt er neu, mit Restart-Marker).
+const consoleHistory = [];
+const CONSOLE_HISTORY_LIMIT = 500;
+
+function bufferConsoleLog(entry) {
+  consoleHistory.push(entry);
+  if (consoleHistory.length > CONSOLE_HISTORY_LIMIT) {
+    consoleHistory.splice(0, consoleHistory.length - CONSOLE_HISTORY_LIMIT);
+  }
+}
+
+/**
+ * Legt einen Eintrag in den Console-Verlauf und sendet ihn live an alle Clients.
+ * @param {object} entry { timestamp, level, message }
+ */
+export function pushConsoleLog(entry) {
+  bufferConsoleLog(entry);
+  if (io) {
+    io.emit('consoleLog', entry);
+  }
+}
+
+/**
+ * Markiert einen (Neu-)Start des Servers im Console-Verlauf.
+ */
+export function markConsoleRestart() {
+  pushConsoleLog({
+    timestamp: new Date().toISOString(),
+    level: 'warn',
+    message: '------------------ RESTART ------------------',
+  });
+}
+
 /**
  * Initialisiert den Socket.IO-Server auf dem Express-Server.
  * @param {import('http').Server} httpServer
@@ -98,6 +132,11 @@ export function initSocket(httpServer) {
   // Event-Bus abonnieren und an alle Clients weiterleiten
   eventBus.on('dashboard', ({ event, payload }) => {
     if (io) {
+      // Console-Logs zusätzlich puffern, damit spaeter geoeffnete
+      // Console-Seiten den Verlauf sehen
+      if (event === 'consoleLog' && payload && typeof payload === 'object') {
+        bufferConsoleLog(payload);
+      }
       io.emit(event, payload);
     }
   });
@@ -133,12 +172,18 @@ function sendInitialData(socket) {
     const logs = db.listLogs({ limit: 100 });
     socket.emit('logUpdate', logs);
 
+    // Console-Verlauf (In-Memory, mit Restart-Markern)
+    socket.emit('consoleLog', [...consoleHistory]);
+
     // Bewerbungen
     const apps = db.listApplications();
     socket.emit('teamUpdate', apps);
 
     // Service-Status
     socket.emit('servicesUpdate', getServicesStatus());
+
+    // Payments
+    socket.emit('paymentUpdate', db.listPayments({ limit: 200 }));
   } catch (err) {
     logger.error(`[Socket.IO] Fehler beim Senden initiale Daten: ${err.message}`);
   }
@@ -148,6 +193,7 @@ function getDashboardStats() {
   const memory = process.memoryUsage();
   const users = db.listUsers();
   const applications = db.listApplications();
+  const payments = db.listPayments({ limit: 10000 });
   return {
     discord: { online: true },
     minecraft: bridgeInstance.getStatus(),
@@ -159,11 +205,14 @@ function getDashboardStats() {
     },
     counts: {
       totalUsers: users.length,
-      verified: users.filter((user) => user.status === 'verified').length,
+      verified: users.filter((user) => user.status === 'verified' || user.status === 'team').length,
       teamMembers: users.filter((user) => user.status === 'team').length,
       unverified: users.filter((user) => user.status === 'unverified').length,
+      waitingPayment: users.filter((user) => user.status === 'waiting_payment').length,
       online: users.filter((user) => user.is_online).length,
       pendingApplications: applications.filter((app) => app.status === 'pending').length,
+      pendingPayments: payments.filter((p) => p.status === 'pending').length,
+      confirmedPayments: payments.filter((p) => p.status === 'confirmed').length,
     },
     recentLogs: db.listLogs({ limit: 5 }),
     services: getServicesStatus(),
@@ -178,4 +227,4 @@ export function getIO() {
   return io;
 }
 
-export default { initSocket, getIO };
+export default { initSocket, getIO, pushConsoleLog, markConsoleRestart };

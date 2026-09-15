@@ -54,6 +54,7 @@ export default {
     const statusMap = {
       [PlayerStatus.UNVERIFIED]: 'Nicht verifiziert',
       [PlayerStatus.VERIFIED]: 'Verifiziert',
+      [PlayerStatus.WAITING_PAYMENT]: 'Zahlung ausstehend',
       [PlayerStatus.TEAM]: 'Team-Mitglied',
       [PlayerStatus.LEFT]: 'Ausgetreten',
     };

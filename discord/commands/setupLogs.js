@@ -7,12 +7,18 @@ import configService from '../../server/config.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-logs')
-    .setDescription('Zeigt oder setzt den Log-Kanal fuer Bot-Events.')
+    .setDescription('Zeigt oder setzt die Log-Kanaele.')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption((opt) =>
       opt
-        .setName('kanal')
-        .setDescription('Der Kanal fuer Logs (optional, wenn leer则Zeige aktuellen Kanal)')
+        .setName('logs-kanal')
+        .setDescription('Kanal fuer Verify/Team/System Logs')
+        .addChannelTypes(ChannelType.GuildText),
+    )
+    .addChannelOption((opt) =>
+      opt
+        .setName('join-kanal')
+        .setDescription('Kanal fuer Join/Leave-Transkripte')
         .addChannelTypes(ChannelType.GuildText),
     ),
 
@@ -25,25 +31,37 @@ export default {
       return;
     }
 
-    const channel = interaction.options.getChannel('kanal');
-    const currentLogChannel = configService.getChannelId('channelLogs');
+    const logsChannel = interaction.options.getChannel('logs-kanal');
+    const joinChannel = interaction.options.getChannel('join-kanal');
 
-    if (!channel) {
-      if (currentLogChannel) {
-        await interaction.reply({
-          embeds: [successEmbed('Aktueller Log-Kanal', `Der Log-Kanal ist: <#${currentLogChannel}>`)],
-          ephemeral: true,
-        });
-      } else {
-        await interaction.reply({
-          embeds: [errorEmbed('Kein Log-Kanal', 'Es ist noch kein Log-Kanal konfiguriert. Gib einen Kanal als Option an.')],
-          ephemeral: true,
-        });
-      }
+    // Nur anzeigen
+    if (!logsChannel && !joinChannel) {
+      const currentLogs = configService.getChannelId('channelLogs');
+      const currentJoin = configService.getChannelId('channelJoinLogs');
+      const lines = [];
+      lines.push(currentLogs ? `**Verify/Team/System:** <#${currentLogs}>` : '**Verify/Team/System:** nicht gesetzt');
+      lines.push(currentJoin ? `**Join/Leave:** <#${currentJoin}>` : '**Join/Leave:** nicht gesetzt');
+
+      await interaction.reply({
+        embeds: [successEmbed('Aktuelle Log-Kanaele', lines.join('\n'))],
+        ephemeral: true,
+      });
       return;
     }
 
-    const result = configService.update({ channelLogs: channel.id });
+    const updates = {};
+    const set = [];
+
+    if (logsChannel) {
+      updates.channelLogs = logsChannel.id;
+      set.push(`Verify/Team/System → <#${logsChannel.id}>`);
+    }
+    if (joinChannel) {
+      updates.channelJoinLogs = joinChannel.id;
+      set.push(`Join/Leave → <#${joinChannel.id}>`);
+    }
+
+    const result = configService.update(updates);
     if (!result.ok) {
       await interaction.reply({
         embeds: [errorEmbed('Fehler', result.errors.join('\n'))],
@@ -53,7 +71,7 @@ export default {
     }
 
     await interaction.reply({
-      embeds: [successEmbed('Log-Kanal gesetzt', `Der Log-Kanal wurde auf <#${channel.id}> gesetzt.`)],
+      embeds: [successEmbed('Log-Kanaele aktualisiert', set.join('\n'))],
       ephemeral: true,
     });
   },
