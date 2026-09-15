@@ -239,16 +239,18 @@ export async function buildPaymentConfirmedEmbed(payment) {
 export function registerPendingPaymentConfirm(client, user, payment, { alreadyAnnounced = false, channelId = null, messageId = null } = {}) {
   const old = pendingPaymentConfirms.get(user.discord_id);
   if (old?.timer) clearTimeout(old.timer);
-  // Kurze Wartezeit (4s): Der Server antwortet auf das Invite normalerweise
-  // in 1-2s. Kommt in der Zeit ein Fehler, wird die Erfolgsmeldung
-  // unterdrueckt und es kommt nur die EINE finale Fehlernachricht.
-  const entry = { payment, user, timer: null, client, channelId, messageId };
+  // Erst checken, dann das Embed: Die Erfolgsmeldung kommt erst, wenn der
+  // Server die Einladung bestaetigt (TEAM_INVITED) oder nach 15s ohne
+  // Antwort (Fallback). Kommt vorher ein Fehler, gibt es nur die EINE
+  // Fehlernachricht und niemals ein Erfolgs-Embed davor.
+  const entry = { payment, user, timer: null, client, channelId, messageId, announced: alreadyAnnounced };
   const timer = setTimeout(async () => {
     entry.timer = null;
     // Wurde der Normalzustand schon angezeigt (z.B. nach Nochmal-Klick),
     // dann nichts doppelt senden – nur auf Server-Antwort warten.
     // Der Eintrag bleibt bestehen, damit Fehler/Join die Nachricht finden.
-    if (alreadyAnnounced) return;
+    if (entry.announced) return;
+    entry.announced = true;
     try {
       const discordUser = await client.users.fetch(user.discord_id);
       if (!discordUser) return;
@@ -261,7 +263,7 @@ export function registerPendingPaymentConfirm(client, user, payment, { alreadyAn
     } catch (err) {
       logger.warn(`[Payment] Konnte verzoegerte Erfolgs-DM nicht senden: ${err.message}`);
     }
-  }, 4000);
+  }, 15000);
   entry.timer = timer;
   pendingPaymentConfirms.set(user.discord_id, entry);
   return entry;
@@ -274,6 +276,34 @@ export function consumePendingPaymentConfirm(discordId) {
   if (entry.timer) clearTimeout(entry.timer);
   pendingPaymentConfirms.delete(discordId);
   return entry;
+}
+
+/**
+ * Sendet das "Zahlung erkannt"-Embed sofort, weil der Server die Einladung
+ * bestaetigt hat. Bricht den Fallback-Timer ab, behaelt den Eintrag aber
+ * fuer spaetere Uebergaenge (Fehler/Join loeschen dann genau diese Nachricht).
+ * @returns {Promise<boolean>} true wenn gesendet
+ */
+export async function announcePaymentConfirmed(discordId) {
+  const entry = pendingPaymentConfirms.get(discordId);
+  if (!entry || entry.announced) return false;
+  if (entry.timer) {
+    clearTimeout(entry.timer);
+    entry.timer = null;
+  }
+  entry.announced = true;
+  try {
+    const discordUser = await entry.client.users.fetch(discordId);
+    if (!discordUser) return false;
+    const dm = await discordUser.createDM();
+    const sent = await dm.send({ embeds: [await buildPaymentConfirmedEmbed(entry.payment)] });
+    entry.channelId = dm.id;
+    entry.messageId = sent.id;
+    return true;
+  } catch (err) {
+    logger.warn(`[Payment] Konnte Bestaetigungs-DM nicht senden: ${err.message}`);
+    return false;
+  }
 }
 
 /**
@@ -703,6 +733,7 @@ export default {
   confirmPaymentAndInviteTeam,
   registerPendingPaymentConfirm,
   consumePendingPaymentConfirm,
+  announcePaymentConfirmed,
   deleteAnnouncedPaymentMessage,
   sendPaymentFailedEmbed,
   sendPaymentTimeoutEmbed,

@@ -10,7 +10,7 @@ import * as db from '../database/index.js';
 import { MessageCategory, LogCategory, PlayerStatus } from '../shared/types.js';
 import { completeVerification } from '../discord/verifyService.js';
 import { handleTeamJoined, handleTeamLeft, removeRankRoles } from '../discord/teamService.js';
-import { validatePayment, confirmPaymentAndInviteTeam, sendPaymentFailedEmbed, consumePendingPaymentConfirm, deleteAnnouncedPaymentMessage, scheduleRefundAfterInviteError } from '../discord/paymentService.js';
+import { validatePayment, confirmPaymentAndInviteTeam, sendPaymentFailedEmbed, consumePendingPaymentConfirm, announcePaymentConfirmed, deleteAnnouncedPaymentMessage, scheduleRefundAfterInviteError } from '../discord/paymentService.js';
 import { syncNickname, grantRole, removeRole } from '../discord/helpers.js';
 
 export class MinecraftBridge {
@@ -540,7 +540,8 @@ export class MinecraftBridge {
         this._handlePlayerLeave(playerName);
       }
     }
-    // 5. Team-Einladung gesendet (Server-Bestaetigung -> kein Resend noetig)
+    // 5. Team-Einladung gesendet (Server-Bestaetigung -> kein Resend noetig).
+    // Erst JETZT kommt das "Zahlung erkannt"-Embed: erst checken, dann melden.
     else if (patterns.TEAM_INVITED && patterns.TEAM_INVITED.test(text)) {
       handledCategory = MessageCategory.SYSTEM;
       logger.info(`[Minecraft] Team-Einladung erkannt: ${text}`);
@@ -548,6 +549,12 @@ export class MinecraftBridge {
       if (invitedMatch && this.pendingTeamInvites) {
         const tracked = this.pendingTeamInvites.get(invitedMatch[1].toLowerCase());
         if (tracked) tracked.acked = true;
+      }
+      if (invitedMatch && this.discordClient) {
+        const invitedUser = db.findUserByIgn(invitedMatch[1]);
+        if (invitedUser?.discord_id) {
+          await announcePaymentConfirmed(invitedUser.discord_id);
+        }
       }
     }
     // 6. Team-Beitritt
