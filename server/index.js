@@ -47,6 +47,15 @@ async function main() {
   logger.info('  Team DICKS TeamBot wird gestartet...');
   logger.info('========================================');
 
+  // Code-Stand loggen, damit auf dem VPS sofort sichtbar ist, ob aktuell gepullt wurde.
+  try {
+    const { execSync } = await import('node:child_process');
+    const hash = execSync('git rev-parse --short HEAD', { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim();
+    logger.info(`[Server] Code-Stand: ${hash}`);
+  } catch {
+    // Kein Git vorhanden – egal.
+  }
+
   // 1. Datenbank initialisieren
   const dbPath = process.env.DATABASE_PATH || './database/windsmp.sqlite';
   initDatabase(dbPath);
