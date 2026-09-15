@@ -14,6 +14,7 @@ export default {
     const publicCommands = [
       { name: '/status', desc: 'Zeigt den aktuellen Bot-Status' },
       { name: '/help', desc: 'Diese Hilfe' },
+      { name: '/reset', desc: 'Eigenen Account zurücksetzen und neu verifizieren' },
     ];
 
     const adminCommands = [
@@ -22,6 +23,7 @@ export default {
       { name: '/setup-dashboard', desc: 'Sendet den Dashboard-Link' },
       { name: '/setup-logs', desc: 'Zeigt oder setzt den Log-Kanal' },
       { name: '/setup-roles', desc: 'Zeigt oder setzt die Rollen' },
+      { name: '/setup-payment', desc: 'Zeigt oder setzt Empfänger und Betrag' },
       { name: '/setup-config', desc: 'Zeigt oder ändert Bot-Einstellungen' },
       { name: '/verify-user', desc: 'Verifizierung erzwingen oder entfernen' },
       { name: '/team-invite', desc: 'Team-Einladung im Spiel senden' },
