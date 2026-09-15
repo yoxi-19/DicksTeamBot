@@ -9,7 +9,7 @@ import { ApplicationStatus, PlayerStatus, LogCategory } from '../shared/types.js
 import { sanitizeIgn } from '../shared/types.js';
 import eventBus from '../shared/events.js';
 import { syncNickname, grantRole, removeRole, grantRoleById, removeRoleById, sendLogEmbed, sendDm, successEmbed } from './helpers.js';
-import { consumePendingPaymentConfirm, cancelRefund } from './paymentService.js';
+import { consumePendingPaymentConfirm, cancelRefund, deleteAnnouncedPaymentMessage } from './paymentService.js';
 
 /**
  * Liefert die Rank-Konfiguration (Anzahl Teams + Rollen je Rang).
@@ -534,10 +534,12 @@ export async function handleTeamJoined(client, ign) {
   });
 
   // Falls der Join direkt auf eine Zahlung folgte, die ausstehende
-  // Erfolgsmeldung unterdruecken und EINE kombinierte Nachricht schicken.
+  // Erfolgsmeldung unterdruecken bzw. bereits gesendete "Zahlung erkannt"-
+  // Nachricht loeschen und EINE kombinierte Nachricht schicken.
   // Ein geplanter Refund ist damit ebenfalls hinfällig.
   const pending = consumePendingPaymentConfirm(user.discord_id);
   cancelRefund(user.discord_id);
+  await deleteAnnouncedPaymentMessage(client, pending);
   if (pending?.payment) {
     await sendDm(client, user.discord_id, {
       embeds: [successEmbed(

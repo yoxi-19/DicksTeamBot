@@ -188,6 +188,7 @@ export async function unlink(client, discordId) {
     await removeRole(guild, discordId, 'roleTeam');
     await removeRankRoles(guild, discordId);
     await grantRole(guild, discordId, 'roleJoin');
+    await syncNickname(guild, discordId, '');
   }
   await clearOwnerSlots(client, discordId);
 

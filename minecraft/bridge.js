@@ -10,7 +10,7 @@ import * as db from '../database/index.js';
 import { MessageCategory, LogCategory, PlayerStatus } from '../shared/types.js';
 import { completeVerification } from '../discord/verifyService.js';
 import { handleTeamJoined, handleTeamLeft, removeRankRoles } from '../discord/teamService.js';
-import { validatePayment, confirmPaymentAndInviteTeam, sendPaymentFailedEmbed, consumePendingPaymentConfirm, scheduleRefundAfterInviteError } from '../discord/paymentService.js';
+import { validatePayment, confirmPaymentAndInviteTeam, sendPaymentFailedEmbed, consumePendingPaymentConfirm, deleteAnnouncedPaymentMessage, scheduleRefundAfterInviteError } from '../discord/paymentService.js';
 import { syncNickname, grantRole, removeRole } from '../discord/helpers.js';
 
 export class MinecraftBridge {
@@ -810,9 +810,11 @@ export class MinecraftBridge {
    * und startet den Refund-Timer.
    */
   async _sendTeamInviteError(discordId, ign, errorCode, serverText, hint) {
-    // Ausstehende Erfolgsmeldung unterdruecken: Bei einem Invite-Fehler
-    // kommt NUR diese EINE finale Nachricht (kein "Zahlung erkannt" davor).
+    // Ausstehende Erfolgsmeldung unterdruecken bzw. bereits gesendete
+    // "Zahlung erkannt"-Nachricht loeschen: Bei einem Invite-Fehler kommt
+    // NUR diese EINE finale Nachricht.
     const pending = consumePendingPaymentConfirm(discordId);
+    await deleteAnnouncedPaymentMessage(this.discordClient, pending);
     const amountLine = pending?.payment?.amount
       ? `Deine Zahlung (**$${pending.payment.amount.toLocaleString('de-DE')}**) wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`
       : `Deine Zahlung wurde erkannt, aber die Einladung ist fehlgeschlagen.\n\n`;

@@ -16,17 +16,20 @@ export function buildVerifyPanelEmbed() {
 
   return new EmbedBuilder()
     .setColor(hexToDecimal(primaryColor))
-    .setTitle('🔐 DICKS | Konto-Verifizierung')
+    .setTitle('DICKS | Konto-Verifizierung')
     .setDescription(
       'Willkommen auf dem offiziellen **DICKS** Discord-Server!\n\n' +
-      'Um dem Team beizutreten, musst du deinen Minecraft-Account verknuepfen und die Team-Gebühr bezahlen.\n\n' +
+      'Um dem Team beizutreten, musst du deinen Minecraft-Account verknuepfen und die Team-Gebuehr bezahlen.\n\n' +
       '**So funktioniert es:**\n' +
-      '1. Klicke unten auf **"✅ Beitreten"**.\n' +
+      '1. Klicke unten auf **Beitreten**.\n' +
       '2. Schreib deinen Minecraft-Namen (IGN) in die DM.\n' +
-      '3. Verbinde dich mit dem MC-Server und sende den Code im Chat.\n' +
-      '4. Bezahle die Team-Gebühr im MC-Server.\n' +
-      '5. Das Team-Spielautomatisch!\n\n' +
-      '*Alles passiert in deinen Direct Messages.*',
+      '3. Sende den Code im Spiel per DM an den Bot:\n' +
+      '```\n' +
+      `/msg ${botName} CODE\n` +
+      '```\n' +
+      '4. Bezahle die Team-Gebuehr im Spiel.\n' +
+      '5. Nimm die Team-Einladung im Spiel an.\n\n' +
+      '*Alles weitere passiert in deinen Direct Messages.*',
     )
     .setFooter({ text: 'Team DICKS Bot • Automatische Verifizierung' })
     .setTimestamp();

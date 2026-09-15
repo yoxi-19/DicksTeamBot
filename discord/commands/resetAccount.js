@@ -5,6 +5,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { errorEmbed, successEmbed } from '../helpers.js';
 import * as db from '../../database/index.js';
 import { PlayerStatus } from '../../shared/types.js';
+import { unlink } from '../verifyService.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,11 +31,18 @@ export default {
       return;
     }
 
-    // Account zuruecksetzen
-    db.unlinkUser(interaction.user.id);
+    // Account zuruecksetzen (inkl. Rollen, Nickname, Owner-Slots, Logs)
+    const result = await unlink(interaction.client, interaction.user.id);
+    if (!result.ok) {
+      await interaction.reply({
+        embeds: [errorEmbed('Fehler', result.message)],
+        ephemeral: true,
+      });
+      return;
+    }
 
     await interaction.reply({
-      embeds: [successEmbed('Zurueckgesetzt', `Dein Account (**${user.ign}**) wurde entfernt. Du kannst jetzt neu verifizieren.`)],
+      embeds: [successEmbed('Zurueckgesetzt', `${result.message} Du kannst jetzt neu verifizieren.`)],
       ephemeral: true,
     });
   },

@@ -236,27 +236,35 @@ export async function buildPaymentConfirmedEmbed(payment) {
     .setTimestamp();
 }
 
-export function registerPendingPaymentConfirm(client, user, payment, { alreadyAnnounced = false } = {}) {
+export function registerPendingPaymentConfirm(client, user, payment, { alreadyAnnounced = false, channelId = null, messageId = null } = {}) {
   const old = pendingPaymentConfirms.get(user.discord_id);
   if (old?.timer) clearTimeout(old.timer);
   // Kurze Wartezeit (4s): Der Server antwortet auf das Invite normalerweise
   // in 1-2s. Kommt in der Zeit ein Fehler, wird die Erfolgsmeldung
   // unterdrueckt und es kommt nur die EINE finale Fehlernachricht.
+  const entry = { payment, user, timer: null, client, channelId, messageId };
   const timer = setTimeout(async () => {
-    pendingPaymentConfirms.delete(user.discord_id);
+    entry.timer = null;
     // Wurde der Normalzustand schon angezeigt (z.B. nach Nochmal-Klick),
     // dann nichts doppelt senden – nur auf Server-Antwort warten.
+    // Der Eintrag bleibt bestehen, damit Fehler/Join die Nachricht finden.
     if (alreadyAnnounced) return;
     try {
       const discordUser = await client.users.fetch(user.discord_id);
       if (!discordUser) return;
       const dm = await discordUser.createDM();
-      await dm.send({ embeds: [await buildPaymentConfirmedEmbed(payment)] });
+      const sent = await dm.send({ embeds: [await buildPaymentConfirmedEmbed(payment)] });
+      // Nachricht merken, damit spaetere Uebergaenge (Fehler/Join) sie
+      // loeschen koennen statt ein zweites "Zahlung erkannt" zu schicken.
+      entry.channelId = dm.id;
+      entry.messageId = sent.id;
     } catch (err) {
       logger.warn(`[Payment] Konnte verzoegerte Erfolgs-DM nicht senden: ${err.message}`);
     }
   }, 4000);
-  pendingPaymentConfirms.set(user.discord_id, { payment, user, timer, client });
+  entry.timer = timer;
+  pendingPaymentConfirms.set(user.discord_id, entry);
+  return entry;
 }
 
 /** Holt und loescht eine ausstehende Payment-Bestaetigung (fuer Invite-Fehler/Join). */
@@ -266,6 +274,24 @@ export function consumePendingPaymentConfirm(discordId) {
   if (entry.timer) clearTimeout(entry.timer);
   pendingPaymentConfirms.delete(discordId);
   return entry;
+}
+
+/**
+ * Loescht die angezeigte "Zahlung erkannt"-Nachricht, falls bekannt.
+ * Damit steht zu jedem Zeitpunkt nur EINE davon in den DMs.
+ */
+export async function deleteAnnouncedPaymentMessage(client, entry) {
+  if (!entry?.channelId || !entry?.messageId || !client) return;
+  try {
+    const channel = await client.channels.fetch(entry.channelId);
+    if (!channel?.messages) return;
+    const msg = await channel.messages.fetch(entry.messageId).catch(() => null);
+    if (msg?.deletable) {
+      await msg.delete();
+    }
+  } catch {
+    // Bereits weg oder keine Rechte – egal.
+  }
 }
 
 export async function confirmPaymentAndInviteTeam(client, user, payment) {
@@ -677,6 +703,7 @@ export default {
   confirmPaymentAndInviteTeam,
   registerPendingPaymentConfirm,
   consumePendingPaymentConfirm,
+  deleteAnnouncedPaymentMessage,
   sendPaymentFailedEmbed,
   sendPaymentTimeoutEmbed,
   checkPaymentTimeouts,

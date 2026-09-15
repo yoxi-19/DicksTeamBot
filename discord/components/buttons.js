@@ -243,7 +243,18 @@ async function handleTeamInviteRetryButton(interaction, client) {
     return;
   }
 
-  registerPendingPaymentConfirm(client, { discord_id: interaction.user.id, ign: user.ign }, payment, { alreadyAnnounced: true });
+  registerPendingPaymentConfirm(
+    client,
+    { discord_id: interaction.user.id, ign: user.ign },
+    payment,
+    {
+      alreadyAnnounced: true,
+      // Die per Update umgewandelte Nachricht ist ab jetzt der
+      // Normalzustand – spaetere Fehler/Join loeschen genau diese.
+      channelId: interaction.channelId || null,
+      messageId: interaction.message?.id || null,
+    },
+  );
 
   await interaction.update({
     embeds: [await buildPaymentConfirmedEmbed(payment)],
