@@ -13,6 +13,9 @@ dist/
 # Database
 *.sqlite
 *.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
 *.db
 database/*.sqlite
 
