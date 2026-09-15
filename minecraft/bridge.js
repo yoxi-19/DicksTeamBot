@@ -43,6 +43,10 @@ export class MinecraftBridge {
     this.lastSendAt = 0;
     this.MIN_SEND_INTERVAL_MS = 1500;
     this.MAX_QUEUE_SIZE = 50;
+    // Zeitpunkt des letzten Disconnects/Kicks. Nach dem Spawn gibt es ein
+    // kurzes Fenster, in dem Senden funktioniert – das wird sofort genutzt.
+    // Der Refund nutzt den Zeitstempel zur Versandkontrolle.
+    this.lastDisconnectAt = 0;
 
     // Unbestaetigte Team-Einladungen: ignLower -> { discordId, sentAt, acked, resends }
     this.MAX_INVITE_RESENDS = 3;
@@ -374,7 +378,8 @@ export class MinecraftBridge {
 
     bot.on('spawn', () => {
       logger.info('[Minecraft] Bot in der Welt gespawnt.');
-      // Queue abarbeiten + unbestaetigte Invites erneut senden (Kick-Umgehung).
+      // Sofort senden: Nach dem Spawn gibt es ein Fenster, in dem Senden
+      // funktioniert – das wird direkt genutzt (Queue + Invite-Resends).
       this._pumpSendQueue();
       this._resendUnackedInvites();
       // Online-Status mit der echten Spielerliste abgleichen (loest
@@ -397,6 +402,7 @@ export class MinecraftBridge {
 
     bot.on('end', (reason) => {
       this.isConnected = false;
+      this.lastDisconnectAt = Date.now();
       logger.warn(`[Minecraft] Verbindung getrennt: ${reason}`);
       try {
         db.setAllUsersOffline();
@@ -410,6 +416,7 @@ export class MinecraftBridge {
 
     bot.on('kicked', (reason) => {
       this.isConnected = false;
+      this.lastDisconnectAt = Date.now();
       const parsedReason = typeof reason === 'string' ? reason : JSON.stringify(reason);
       logger.warn(`[Minecraft] Vom Server gekickt: ${parsedReason}`);
       try {
@@ -1005,15 +1012,13 @@ export class MinecraftBridge {
     const result = await completeVerification(this.discordClient, code, cleanSender);
 
     if (result.ok) {
-      if (cleanSender) {
-        this.sendMessage(`/msg ${cleanSender} Dein Discord-Konto wurde erfolgreich verifiziert!`);
-      }
+      // KEINE Ingame-Bestaetigung: Jede gesendete Nachricht kann auf Servern
+      // mit Chat-Signierung einen chat_validation_failed-Kick ausloesen.
+      // Der User erhaelt Erfolg + Zahlungsaufforderung per Discord-DM.
       // Keine Erfolgs-DM hier: verifyService.completeVerification schickt bereits
       // in der richtigen Reihenfolge erst die Bestaetigung, dann die Zahlungsaufforderung.
     } else {
-      if (cleanSender) {
-        this.sendMessage(`/msg ${cleanSender} Verifizierung fehlgeschlagen. Bitte pruefe im Discord, ob du den richtigen Minecraft-Namen angegeben hast.`);
-      }
+      // Gleicher Grund: kein /msg bei Fehlern, nur Discord-DM.
       // Fehler-DM senden (mit Nochmal-Button fuer neuen Versuch).
       // Faellt der Code weg (ungueltig/abgelaufen), gibt es keine discordId
       // aus dem Code – dann wird der Sender per IGN aufgeloest, damit der

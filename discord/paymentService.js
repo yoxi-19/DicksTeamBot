@@ -525,10 +525,14 @@ async function executeRefund(client, discordId, paymentId, attempts) {
   }
 
   // Bot-Verbindung pruefen (dynamischer Import: kein Modul-Zyklus).
+  // sendCommand reiht nur ein – ob es wirklich rausging, prueft die
+  // Versandkontrolle unten (Kick beim Senden ist jederzeit moeglich).
   let sent = false;
+  let sendTime = 0;
   try {
     const { bridgeInstance } = await import('../minecraft/bridge.js');
     if (bridgeInstance?.isConnected) {
+      sendTime = Date.now();
       sent = bridgeInstance.sendCommand(`/pay ${cleanIgn} ${amount}`);
     }
   } catch (err) {
@@ -555,6 +559,47 @@ async function executeRefund(client, discordId, paymentId, attempts) {
         color: 'error',
       });
     }
+    return;
+  }
+
+  // Versandkontrolle: Falls der Bot kurz nach dem Einreihen gekickt wurde,
+  // ist unklar ob /pay rauskam. Dann NICHT als refunden markieren, sondern
+  // Admin-Review (kein Doppel-Pay riskieren, kein Geld unterschlagen).
+  await new Promise((resolve) => setTimeout(resolve, 30000));
+  try {
+    const { bridgeInstance } = await import('../minecraft/bridge.js');
+    if (!bridgeInstance?.isConnected || (bridgeInstance.lastDisconnectAt || 0) >= sendTime) {
+      logger.error(`[Refund] Kick nach Refund-Versand (Payment #${paymentId}) – manuell pruefen, NICHT erneut senden.`);
+      await sendLogEmbed(client, {
+        category: LogCategory.PAYMENT,
+        title: 'Refund unklar – manuell pruefen',
+        description: `Bot wurde nach \`/pay ${cleanIgn} ${amount}\` (Payment #${paymentId}) getrennt. Unklar ob es ankam – bitte Kontostand pruefen und ggf. MANUELL nachzahlen. KEIN Auto-Retry (Doppel-Pay vermeiden).`,
+        color: 'error',
+      });
+      return;
+    }
+  } catch (err) {
+    logger.error(`[Refund] Versandkontrolle fehlgeschlagen (Payment #${paymentId}): ${err.message}`);
+    return;
+  }
+
+  // Erneut validieren: Falls der User waehrenddessen per Retry doch noch
+  // ins Team kam, NICHTS automatisch abschliessen (kein Demote, keine
+  // falsche DM) – Admin klaert, ob Geld rausging.
+  const freshPayment = db.findPaymentById(paymentId);
+  const freshUser = db.findUserByDiscord(discordId);
+  if (!freshPayment || freshPayment.status !== PaymentStatus.REFUNDING) {
+    logger.info(`[Refund] Payment #${paymentId} nicht mehr refunding – Abbruch.`);
+    return;
+  }
+  if (freshUser && freshUser.status === PlayerStatus.TEAM) {
+    logger.error(`[Refund] User ${cleanIgn} ist waehrend Refund ins Team gekommen (Payment #${paymentId}) – manuell pruefen.`);
+    await sendLogEmbed(client, {
+      category: LogCategory.PAYMENT,
+      title: 'Refund + Join gleichzeitig – manuell pruefen',
+      description: `**${cleanIgn}** ist waehrend des Refunds (Payment #${paymentId}, $${amount.toLocaleString('de-DE')}) ins Team gekommen. Bitte pruefen ob Geld rausging – ggf. zurueckfordern oder behalten lassen. Status bleibt zur Klaerung auf 'refunding'.`,
+      color: 'error',
+    });
     return;
   }
 

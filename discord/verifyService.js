@@ -91,7 +91,7 @@ export async function completeVerification(client, code, submittedIgn) {
   if (guild) {
     await syncNickname(guild, discordId, record.ign);
     // Keine Verified-Rolle hier: Die gibt es erst mit dem Team-Beitritt.
-    await removeRole(guild, discordId, 'roleJoin');
+    // Die Beitrittsanfrage-Rolle bleibt bis dahin ebenfalls erhalten.
   }
 
   // Log (kein DM - Bridge bearbeitet das origale Embed).
