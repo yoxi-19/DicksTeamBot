@@ -143,7 +143,7 @@ SESSION_SECRET=ZUFALLSGENERIERTER_LANGER_TEXT_HIER_EINTRAGEN
 JWT_EXPIRES_IN=7d
 
 # Datenbank
-DATABASE_PATH=./database/teamdicks.sqlite
+DATABASE_PATH=./database/windsmp.sqlite
 
 # Dashboard Login
 DASHBOARD_ADMIN_USER=admin
@@ -295,22 +295,37 @@ cd DicksTeamBot
 
 #### 4.5 .env und Minecraft-Session vom PC kopieren
 
-**Von deinem lokalen PC aus** (neues Terminal-Fenster, nicht SSH):
+**Von deinem lokalen PC aus** (PowerShell, kein SSH-Fenster):
 
-```bash
-# .env-Datei kopieren
+```powershell
+# 1. .env-Datei kopieren
 scp "C:\Users\jmb20\Desktop\Coding\Team Dicks Bots\.env" root@DEINE_VPS_IP:/home/DicksTeamBot/
 
-# Minecraft-Session-Cache kopieren (falls vorhanden)
-scp -r "%USERPROFILE%\.minecraft\nmp-cache" root@DEINE_VPS_IP:/home/DicksTeamBot/.minecraft/
+# 2. Zielordner auf dem VPS anlegen (ohne diesen Schritt scheitert scp!)
+ssh root@DEINE_VPS_IP "mkdir -p /home/DicksTeamBot/.minecraft"
+
+# 3. Minecraft-Session-Cache kopieren (falls vorhanden)
+scp -r "$env:APPDATA\.minecraft\nmp-cache" root@DEINE_VPS_IP:/home/DicksTeamBot/.minecraft/
 ```
 
 > Ersetze `DEINE_VPS_IP` durch die echte IP deines VPS!
 > Falls du einen anderen Benutzernamen als `root` nutzt, ersetze `root` entsprechend.
+>
+> **Warum genau so?**
+> - `%USERPROFILE%` funktioniert in PowerShell **nicht** (das ist cmd-Syntax, in PowerShell heißt es `$env:APPDATA`).
+> - Der Ordner liegt unter `AppData\Roaming\.minecraft`, **nicht** direkt unter `C:\Users\...\.minecraft`.
+
+Danach auf dem VPS in der `.env` den Profil-Ordner fest eintragen, sonst sucht der Bot (läuft als root) fälschlich unter `/root/.minecraft`:
+
+```bash
+# in /home/DicksTeamBot/.env setzen:
+MINECRAFT_PROFILES_FOLDER=/home/DicksTeamBot/.minecraft/nmp-cache
+```
 
 Pruefe auf dem VPS ob die Dateien da sind:
 ```bash
 ls -la /home/DicksTeamBot/.env
+ls -la /home/DicksTeamBot/.minecraft/nmp-cache
 ```
 
 #### 4.6 Dependencies installieren und Dashboard bauen
