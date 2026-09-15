@@ -374,11 +374,12 @@ export async function syncAllMembers(client) {
       } else if (user.status === PlayerStatus.VERIFIED) {
         // Verifiziert ohne Team: keine Team-Rollen und auch keine
         // Verified-Rolle (die gibt es erst mit dem Team-Beitritt).
+        // Die Beitrittsanfrage-Rolle ("Not Verified", sperrt die Sicht)
+        // bleibt bis zum Beitritt erhalten.
         await removeRole(guild, user.discord_id, 'roleVerified');
         await removeRole(guild, user.discord_id, 'roleTeam');
         await removeRankRoles(guild, user.discord_id);
         await removeOwnerRoles(guild, user.discord_id);
-        await removeRole(guild, user.discord_id, 'roleJoin');
       }
       synced++;
     } catch (err) {
@@ -580,6 +581,7 @@ export async function handleTeamLeft(client, ign) {
     await removeRole(guild, user.discord_id, 'roleTeam');
     await removeRole(guild, user.discord_id, 'roleVerified');
     await removeRankRoles(guild, user.discord_id);
+    await grantRole(guild, user.discord_id, 'roleJoin');
   }
   await clearOwnerSlots(client, user.discord_id);
 

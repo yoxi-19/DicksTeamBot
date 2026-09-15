@@ -47,6 +47,7 @@ export default {
       await removeRole(guild, targetUser.id, 'roleTeam');
       await removeRole(guild, targetUser.id, 'roleVerified');
       await removeRankRoles(guild, targetUser.id);
+      await grantRole(guild, targetUser.id, 'roleJoin');
     }
     await clearOwnerSlots(interaction.client, targetUser.id);
 

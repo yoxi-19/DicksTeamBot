@@ -1135,6 +1135,7 @@ export class MinecraftBridge {
               await removeRole(guild, user.discord_id, 'roleVerified');
               await removeRole(guild, user.discord_id, 'roleTeam');
               await removeRankRoles(guild, user.discord_id);
+              await grantRole(guild, user.discord_id, 'roleJoin');
               await syncNickname(guild, user.discord_id, '');
             }
           }
