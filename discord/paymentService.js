@@ -621,23 +621,29 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     return;
   }
 
-  // Versandkontrolle: Wurde der Bot nach dem Einreihen gekickt/getrennt,
-  // ist die Nachricht verworfen worden (Validierungs-Kick = Paket abgelehnt)
-  // und NICHT angekommen. Dann Claim freigeben und nach dem Reconnect
-  // erneut versuchen (begrenzt). Erst wenn alles scheitert: Admin-Review.
+  // Versandkontrolle: Nur wenn der Kick nachweislich DURCH den Refund kam
+  // (Refund war der letzte Send und der Kick folgte direkt darauf), gilt er
+  // als verworfen -> Claim freigeben und erneut versuchen. Kam der Kick
+  // durch etwas anderes (z.B. frueheren Auto-Balance), ist der Refund
+  // sehr wahrscheinlich durchgegangen -> normal abschliessen.
   await new Promise((resolve) => setTimeout(resolve, 30000));
   const refundCmd = `/pay ${cleanIgn} ${amount}`;
   let kickedAfterSend = true;
+  let refundCausedKick = false;
   try {
     const { bridgeInstance } = await import('../minecraft/bridge.js');
     const discAt = bridgeInstance?.lastDisconnectAt || 0;
     kickedAfterSend = !bridgeInstance?.isConnected || discAt >= sendTime;
+    const last = bridgeInstance?.lastSent;
+    refundCausedKick = kickedAfterSend && !!last && last.text === refundCmd && discAt >= sendTime && discAt - (last.at || 0) < 10000;
   } catch (err) {
     logger.error(`[Refund] Versandkontrolle fehlgeschlagen (Payment #${paymentId}): ${err.message}`);
     return;
   }
 
-  if (kickedAfterSend) {
+  if (kickedAfterSend && refundCausedKick) {
+    // Kick durch genau diesen Send -> Paket verworfen, kein Geld bewegt.
+    // Claim freigeben und nach Reconnect erneut versuchen (begrenzt).
     db.releaseRefundClaim(paymentId);
     const nextAttempts = attempts + 1;
     if (nextAttempts < REFUND_MAX_ATTEMPTS) {
@@ -657,6 +663,12 @@ async function executeRefund(client, discordId, paymentId, attempts) {
       });
     }
     return;
+  }
+
+  if (kickedAfterSend) {
+    // Kick kam durch etwas anderes (nicht der Refund) -> der Refund ging
+    // sehr wahrscheinlich vorher raus. Normal abschliessen (mit Revalidierung unten).
+    logger.info(`[Refund] Kick nach Refund-Versand (Payment #${paymentId}), aber nicht durch ihn verursacht – schliesse normal ab.`);
   }
 
   // Erneut validieren: Falls der User waehrenddessen per Retry doch noch

@@ -109,10 +109,12 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
   // Team-Einstellungen
   team: {
-    // Name des Teams für die Annahme-Änweisung nach einem Invite
+    // Name des Teams für die Annahme-Anweisung nach einem Invite
     name: 'Dicks5',
-    // Wie lange Team-Einladungen gültig sind (ms)
+    // Wie lange Team-Einladungen gueltig sind (ms)
     inviteTtlMs: 30 * 60 * 1000,
+    // Wenn true, ist das Team voll: Neue Beitritte werden am Panel abgewiesen
+    isFull: false,
   },
 
   // Team-Ränge (1 = höchstes Team, count = Einstieg).

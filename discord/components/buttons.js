@@ -7,6 +7,7 @@ import { bridgeInstance } from '../../minecraft/bridge.js';
 import { errorEmbed, successEmbed } from '../helpers.js';
 import * as db from '../../database/index.js';
 import { PlayerStatus } from '../../shared/types.js';
+import configService from '../../server/config.js';
 import eventBus from '../../shared/events.js';
 import logger from '../../shared/logger.js';
 
@@ -68,6 +69,16 @@ async function handleVerifyButton(interaction, client) {
   if (user && user.status === PlayerStatus.LEFT) {
     await interaction.reply({
       embeds: [errorEmbed('Team verlassen', 'Du hast das Team bereits verlassen. Bitte wende dich an einen Admin.')],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Team voll: keine neuen Vorgänge (laufende Zahlungen/Verifizierungen
+  // duerfen trotzdem fortgesetzt werden und landen im normalen Ablauf).
+  if ((!user || user.status === PlayerStatus.UNVERIFIED) && configService.get('team', {}).isFull) {
+    await interaction.reply({
+      embeds: [errorEmbed('Team ist voll', 'Aktuell können keine neuen Mitglieder aufgenommen werden. Versuch es später erneut.')],
       ephemeral: true,
     });
     return;
@@ -138,6 +149,15 @@ async function handleTeamButton(interaction, client) {
   if (user && user.status === PlayerStatus.LEFT) {
     await interaction.reply({
       embeds: [errorEmbed('Team verlassen', 'Du hast das Team bereits verlassen. Bitte wende dich an einen Admin.')],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Team voll: keine neuen Vorgänge (laufende Vorgänge duerfen fortgesetzt werden).
+  if ((!user || user.status === PlayerStatus.UNVERIFIED) && configService.get('team', {}).isFull) {
+    await interaction.reply({
+      embeds: [errorEmbed('Team ist voll', 'Aktuell können keine neuen Mitglieder aufgenommen werden. Versuch es später erneut.')],
       ephemeral: true,
     });
     return;

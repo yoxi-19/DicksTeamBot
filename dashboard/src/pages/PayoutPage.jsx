@@ -105,7 +105,7 @@ export default function PayoutPage() {
               {bankBalance === null ? '–' : `$${Number(bankBalance).toLocaleString('de-DE')}`}
             </p>
             <p className="text-xs text-gray-600 mt-1">
-              {!bankOnline ? 'Bot offline' : bankBalanceAt ? `Stand: ${new Date(bankBalanceAt).toLocaleString('de-DE')}` : 'Wird abgefragt …'}
+              {!bankOnline ? 'Bot offline' : bankBalanceAt ? `Stand: ${new Date(bankBalanceAt).toLocaleString('de-DE')}` : 'Noch nicht abgefragt – Aktualisieren drücken.'}
             </p>
           </div>
           <button

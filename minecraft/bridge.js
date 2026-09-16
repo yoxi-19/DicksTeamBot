@@ -56,12 +56,11 @@ export class MinecraftBridge {
     this.MAX_INVITE_RESENDS = 3;
     this.INVITE_RESEND_WINDOW_MS = 5 * 60 * 1000;
 
-    // Bankstand: per /balance abgefragt, Antwort kommt als Chat-Nachricht.
+    // Bankstand: nur manuell per Dashboard-Button abgefragt (kein Intervall,
+    // keine Auto-Abfrage – jeder automatische Send riskiert einen Kick).
     this.bankBalance = { amount: null, at: null };
     this.pendingBalanceSince = 0;
     this.BALANCE_WINDOW_MS = 15000;
-    this.BALANCE_INTERVAL_MS = 5 * 60 * 1000;
-    this.balanceTimer = null;
 
     // Listener für Event-Bus Aktionen
     this._setupBusListeners();
@@ -132,14 +131,6 @@ export class MinecraftBridge {
       }
       this.bot = null;
     }
-    if (this.balanceTimer) {
-      clearInterval(this.balanceTimer);
-      this.balanceTimer = null;
-    }
-    // Bankstand regelmaessig aktualisieren (nur wenn verbunden abgefragt)
-    this.balanceTimer = setInterval(() => {
-      if (this.isConnected) this.queryBankBalance();
-    }, this.BALANCE_INTERVAL_MS);
 
     const host = configService.env.minecraftHost || 'localhost';
     const port = configService.env.minecraftPort || 25565;
@@ -203,10 +194,6 @@ export class MinecraftBridge {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
-    }
-    if (this.balanceTimer) {
-      clearInterval(this.balanceTimer);
-      this.balanceTimer = null;
     }
 
     if (this.bot) {
@@ -505,11 +492,6 @@ export class MinecraftBridge {
       // funktioniert – das wird direkt genutzt (Queue + Invite-Resends).
       this._pumpSendQueue();
       this._resendUnackedInvites();
-      // Bankstand nach dem Spawn einmalig abfragen (etwas verzoegert,
-      // damit die Chat-Sitzung steht).
-      setTimeout(() => {
-        if (this.isConnected) this.queryBankBalance();
-      }, 10000);
       // Online-Status mit der echten Spielerliste abgleichen (loest
       // veraltete is_online-Werte, z.B. nach verpassten Join/Leave-Events).
       const reconcile = () => {

@@ -7,7 +7,7 @@ const sections = [
   { title: 'Discord-Kanäle', description: 'Discord-Channel-IDs für Panels und Protokolle.', fields: [['channelLogs', 'Logs (Verify/Team)'], ['channelJoinLogs', 'Join/Leave-Transkripte'], ['channelVerify', 'Verifizierung'], ['channelTeam', 'Team']] },
   { title: 'Verifizierung', description: 'Code-Länge, Gültigkeit und der Hinweis für Spieler.', fields: [['verify.codeLength', 'Code-Länge', 'number'], ['verify.codeTtlMs', 'Gültigkeit (ms)', 'number'], ['verify.verifyCommand', 'Änweisung']] },
   { title: 'Zahlung', description: 'Empfänger und Betrag für den Team-Beitritt.', fields: [['payment.recipient', 'Empfänger-IGN'], ['payment.amount', 'Betrag ($)', 'number'], ['timeouts.paymentTimeoutMs', 'Timeout (ms)', 'number']] },
-  { title: 'Team', description: 'Name des Teams und Zeitwerte für Einladungen.', fields: [['team.name', 'Teamname'], ['team.inviteTtlMs', 'Einladung gültig (ms)', 'number'], ['timeouts.verifyCooldownMs', 'Verify-Cooldown (ms)', 'number'], ['timeouts.buttonTtlMs', 'Button-Timeout (ms)', 'number']] },
+  { title: 'Team', description: 'Name des Teams und Zeitwerte für Einladungen.', fields: [['team.name', 'Teamname'], ['team.inviteTtlMs', 'Einladung gültig (ms)', 'number'], ['team.isFull', 'Team ist voll (Beitritt pausiert)', 'checkbox'], ['timeouts.verifyCooldownMs', 'Verify-Cooldown (ms)', 'number'], ['timeouts.buttonTtlMs', 'Button-Timeout (ms)', 'number']] },
 ];
 const colorFields = ['primary', 'secondary', 'success', 'error', 'warning', 'info'];
 const readPath = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
@@ -51,7 +51,17 @@ export default function SettingsPage() {
             {section.fields.map(([path, label, type = 'text']) => (
               <label key={path} className="block">
                 <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-gray-500">{label}</span>
-                {section.dynamic === 'discordRoles' && guildRoles ? (
+                {type === 'checkbox' ? (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={!!readPath(draft, path)}
+                    onClick={() => change(path, !readPath(draft, path))}
+                    className={`relative h-6 w-11 rounded-full transition-colors ${readPath(draft, path) ? 'bg-windsmp-primary' : 'bg-white/10'}`}
+                  >
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${readPath(draft, path) ? 'left-[22px]' : 'left-0.5'}`} />
+                  </button>
+                ) : section.dynamic === 'discordRoles' && guildRoles ? (
                   <select value={readPath(draft, path) ?? ''} onChange={(event) => change(path, event.target.value)} className="input-field w-full text-sm">
                     <option value="">— keine —</option>
                     {guildRoles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}

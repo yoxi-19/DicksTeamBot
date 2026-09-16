@@ -210,6 +210,9 @@ class ConfigService extends EventEmitter {
         return null;
       case 'team':
         if (value === null || typeof value !== 'object') return 'Muss ein Objekt sein.';
+        if (value.isFull !== undefined && typeof value.isFull !== 'boolean') {
+          return 'isFull muss true oder false sein.';
+        }
         return null;
       case 'teamRanks':
         if (value === null || typeof value !== 'object') return 'Muss ein Objekt sein.';
