@@ -978,16 +978,17 @@ export class MinecraftBridge {
       const user = await this.discordClient.users.fetch(discordId);
       if (user) {
         const dm = await user.createDM();
-        const embed = new EmbedBuilder()
-          .setColor(0xED4245)
-          .setTitle('Team-Einladung fehlgeschlagen')
-          .setDescription(
-            amountLine +
-            `**Fehlercode:** \`${errorCode}\`\n\n` +
-            `**Server-Antwort:**\n\`\`\`\n${serverText}\n\`\`\`\n` +
-            `${hint}`,
-          )
-          .setTimestamp();
+          const embed = new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle('Team-Einladung fehlgeschlagen')
+            .setDescription(
+              amountLine +
+              `**Fehlercode:** \`${errorCode}\`\n\n` +
+              `**Server-Antwort:**\n\`\`\`\n${serverText}\n\`\`\`\n` +
+              `${hint}\n\n` +
+              `Passiert 10 Minuten nichts, wird deine Zahlung automatisch per \`/pay\` zurückgezahlt.`,
+            )
+            .setTimestamp();
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('btn_team_invite_retry')
@@ -1087,7 +1088,8 @@ export class MinecraftBridge {
             .setDescription(
               `Deine Zahlung wurde erkannt, aber der Bot ist gerade nicht auf dem Minecraft-Server.\n\n` +
               `**Fehlercode:** \`TEAM_BOT_OFFLINE\`\n\n` +
-              `Druecke Nochmal, sobald der Bot wieder online ist.`,
+              `Drücke Nochmal, sobald der Bot wieder online ist.\n\n` +
+              `Passiert 10 Minuten nichts, wird deine Zahlung automatisch per \`/pay\` zurückgezahlt.`,
             )
             .setTimestamp();
           const row = new ActionRowBuilder().addComponents(
