@@ -878,6 +878,11 @@ export class MinecraftBridge {
       const fullNameMatch = text.match(/([A-Za-z0-9_]{3,16})'?s?\s+team\s+is\s+full/i);
       ign = (fullNameMatch && !/^team$/i.test(fullNameMatch[1]) ? fullNameMatch[1] : null) || this._lastInvitedIgn();
       hint = 'Das Team ist voll. Es muss erst Platz geschaffen werden (Mitglied entfernen), danach Nochmal drücken.';
+    } else if (/maximum\s+members|reached\s+the\s+maximum/i.test(text)) {
+      errorCode = 'TEAM_MAX_MEMBERS';
+      // Kein Name in der Nachricht -> letzte Einladung nehmen
+      ign = this._lastInvitedIgn();
+      hint = 'Das Team hat die maximale Mitgliederzahl erreicht. Es muss erst ein Mitglied entfernt werden, danach Nochmal drücken.';
     } else if (/invit/i.test(text)) {
       // Erfolg ("invited ...") wird von der bestehenden TEAM_INVITED-Erkennung geloggt.
       return false;
