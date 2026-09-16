@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSocket } from '../context/SocketContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { apiFetch } from '../lib/api.js';
 
 const statusLabels = {
@@ -22,9 +23,12 @@ function formatDate(iso) {
 
 export default function PaymentsPage() {
   const { payments: livePayments } = useSocket();
+  const { token } = useAuth();
   const [payments, setPayments] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [cancellingId, setCancellingId] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     if (livePayments && livePayments.length > 0) {
@@ -47,6 +51,25 @@ export default function PaymentsPage() {
   const totalAmount = payments
     .filter((p) => p.status === 'confirmed')
     .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+  const canCancel = (p) => p.status === 'pending' || p.status === 'refunding';
+
+  const handleCancel = async (p) => {
+    const what = p.status === 'refunding'
+      ? `Refund für Payment #${p.id} (${p.ign}, $${formatNumber(p.amount)}) abbrechen? Der Timer stoppt, die Zahlung geht zurück auf bestätigt – Geldfluss ggf. manuell prüfen!`
+      : `Zahlung #${p.id} (${p.ign}, $${formatNumber(p.amount)}) abbrechen? Der Spieler kann danach neu starten.`;
+    if (!window.confirm(what)) return;
+    setCancellingId(p.id);
+    setNotice(null);
+    try {
+      await apiFetch(`/api/payments/${p.id}/cancel`, { method: 'POST', token });
+      setNotice({ type: 'success', text: `Payment #${p.id} abgebrochen.` });
+    } catch (error) {
+      setNotice({ type: 'error', text: error.message || 'Abbruch fehlgeschlagen.' });
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -74,7 +97,7 @@ export default function PaymentsPage() {
       {/* Filter + Suche */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex gap-1 bg-windsmp-darker/60 rounded-lg p-1 border border-windsmp-border/30">
-          {['all', 'pending', 'confirmed', 'timeout', 'refunded'].map((f) => (
+          {['all', 'pending', 'confirmed', 'timeout', 'refunded', 'refunding', 'failed'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -95,6 +118,12 @@ export default function PaymentsPage() {
         />
       </div>
 
+      {notice && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${notice.type === 'success' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-red-500/20 bg-red-500/10 text-red-400'}`}>
+          {notice.text}
+        </div>
+      )}
+
       {/* Tabelle */}
       <div className="card-glass overflow-hidden">
         <div className="overflow-x-auto">
@@ -108,12 +137,13 @@ export default function PaymentsPage() {
                 <th className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">Status</th>
                 <th className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">Erstellt</th>
                 <th className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">Bestätigt</th>
+                <th className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">Aktionen</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-600">Keine Zahlungen gefunden.</td>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-600">Keine Zahlungen gefunden.</td>
                 </tr>
               ) : (
                 filtered.map((p) => {
@@ -127,6 +157,20 @@ export default function PaymentsPage() {
                       <td className="px-4 py-3"><span className={`badge ${st.color}`}>{st.text}</span></td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(p.created_at)}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(p.confirmed_at)}</td>
+                      <td className="px-4 py-3">
+                        {canCancel(p) ? (
+                          <button
+                            onClick={() => handleCancel(p)}
+                            disabled={cancellingId === p.id}
+                            title={p.status === 'refunding' ? 'Refund stoppen (Geldfluss manuell prüfen)' : 'Zahlung abbrechen'}
+                            className="text-[11px] px-3 py-1 rounded-md border border-red-500/25 text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                          >
+                            {cancellingId === p.id ? '...' : 'Abbrechen'}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-700">–</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })

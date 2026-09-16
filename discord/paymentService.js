@@ -675,10 +675,6 @@ async function executeRefund(client, discordId, paymentId, attempts) {
     });
     return;
   }
-  } catch (err) {
-    logger.error(`[Refund] Versandkontrolle fehlgeschlagen (Payment #${paymentId}): ${err.message}`);
-    return;
-  }
 
   // Erneut validieren: Falls der User waehrenddessen per Retry doch noch
   // ins Team kam, NICHTS automatisch abschliessen (kein Demote, keine
