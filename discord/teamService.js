@@ -452,6 +452,31 @@ export async function setUserRank(client, discordId, newRank, actorTag = 'System
     await syncRankRoles(guild, discordId, newRank);
   }
 
+  // Owner-Slots anderer Raenge raeumen, falls der User dort noch als Owner
+  // steht: Wer das Team wechselt, verliert automatisch alte Owner-Rollen.
+  // Vergeben wird Owner weiterhin NUR per team-setowner.
+  if (oldRank !== newRank) {
+    const freshCfg = getRankConfig();
+    const owners = { ...freshCfg.owners };
+    let cleared = false;
+    for (let r = 1; r <= freshCfg.count; r++) {
+      if (r !== newRank && owners[String(r)] === discordId) {
+        delete owners[String(r)];
+        cleared = true;
+        if (guild) {
+          const staleRole = getOwnerRoleId(r, freshCfg);
+          if (staleRole) {
+            await removeRoleById(guild, discordId, staleRole, 'Rangwechsel');
+          }
+        }
+      }
+    }
+    if (cleared) {
+      configService.update({ teamRanks: { ...freshCfg, owners } });
+      logger.info(`[Team] Alte Owner-Slots von ${user.ign} beim Wechsel ${oldRank} -> ${newRank} geraeumt.`);
+    }
+  }
+
   if (!opts.skipLog) {
     await sendLogEmbed(client, {
       category: LogCategory.TEAM,
