@@ -844,6 +844,12 @@ export class MinecraftBridge {
       // Kein Name in der Nachricht -> letzte Einladung nehmen
       ign = this._lastInvitedIgn();
       hint = 'Der Spieler hat Team-Einladungen deaktiviert. Er muss Einladungen erst erlauben (z.B. per Team-Einstellungsbefehl im Spiel), danach Nochmal drücken.';
+    } else if (/\bteam\b[^.]{0,30}\bfull\b|\bfull\b[^.]{0,30}\bteam\b/i.test(text)) {
+      errorCode = 'TEAM_FULL';
+      // Meist ohne Name ("TEAM » This team is full.") -> letzte Einladung nehmen
+      const fullNameMatch = text.match(/([A-Za-z0-9_]{3,16})'?s?\s+team\s+is\s+full/i);
+      ign = (fullNameMatch && !/^team$/i.test(fullNameMatch[1]) ? fullNameMatch[1] : null) || this._lastInvitedIgn();
+      hint = 'Das Team ist voll. Es muss erst Platz geschaffen werden (Mitglied entfernen), danach Nochmal drücken.';
     } else if (/invit/i.test(text)) {
       // Erfolg ("invited ...") wird von der bestehenden TEAM_INVITED-Erkennung geloggt.
       return false;
