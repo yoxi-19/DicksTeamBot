@@ -7,7 +7,7 @@ import logger from '../shared/logger.js';
 import eventBus from '../shared/events.js';
 import configService from '../server/config.js';
 import * as db from '../database/index.js';
-import { MessageCategory, LogCategory, PlayerStatus } from '../shared/types.js';
+import { MessageCategory, LogCategory, PlayerStatus, sanitizeIgn } from '../shared/types.js';
 import { completeVerification } from '../discord/verifyService.js';
 import { handleTeamJoined, handleTeamLeft, removeRankRoles } from '../discord/teamService.js';
 import { validatePayment, confirmPaymentAndInviteTeam, sendPaymentFailedEmbed, consumePendingPaymentConfirm, announcePaymentConfirmed, deleteAnnouncedPaymentMessage, scheduleRefundAfterInviteError } from '../discord/paymentService.js';
@@ -51,6 +51,13 @@ export class MinecraftBridge {
     // Unbestaetigte Team-Einladungen: ignLower -> { discordId, sentAt, acked, resends }
     this.MAX_INVITE_RESENDS = 3;
     this.INVITE_RESEND_WINDOW_MS = 5 * 60 * 1000;
+
+    // Bankstand: per /balance abgefragt, Antwort kommt als Chat-Nachricht.
+    this.bankBalance = { amount: null, at: null };
+    this.pendingBalanceSince = 0;
+    this.BALANCE_WINDOW_MS = 15000;
+    this.BALANCE_INTERVAL_MS = 5 * 60 * 1000;
+    this.balanceTimer = null;
 
     // Listener für Event-Bus Aktionen
     this._setupBusListeners();
@@ -121,6 +128,14 @@ export class MinecraftBridge {
       }
       this.bot = null;
     }
+    if (this.balanceTimer) {
+      clearInterval(this.balanceTimer);
+      this.balanceTimer = null;
+    }
+    // Bankstand regelmaessig aktualisieren (nur wenn verbunden abgefragt)
+    this.balanceTimer = setInterval(() => {
+      if (this.isConnected) this.queryBankBalance();
+    }, this.BALANCE_INTERVAL_MS);
 
     const host = configService.env.minecraftHost || 'localhost';
     const port = configService.env.minecraftPort || 25565;
@@ -184,6 +199,10 @@ export class MinecraftBridge {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+    if (this.balanceTimer) {
+      clearInterval(this.balanceTimer);
+      this.balanceTimer = null;
     }
 
     if (this.bot) {
@@ -263,6 +282,74 @@ export class MinecraftBridge {
     }
 
     return text;
+  }
+
+  /**
+   * Fragt den aktuellen Bankstand per /balance ab.
+   * Die Antwort kommt als Chat-Nachricht und wird dort ausgewertet.
+   * @returns {boolean} true wenn Befehl abgesetzt
+   */
+  queryBankBalance() {
+    const bank = configService.get('payment', {}).recipient || configService.env.minecraftUsername || 'DicksTeamBank';
+    if (!this.bot || !this.isConnected) {
+      logger.warn('[Minecraft] Bankstand kann nicht abgefragt werden (nicht verbunden).');
+      return false;
+    }
+    this.pendingBalanceSince = Date.now();
+    this.sendCommand(`/balance ${bank}`);
+    return true;
+  }
+
+  /**
+   * Wertet eine mögliche Bankstands-Antwort aus (nur kurz nach eigener Abfrage).
+   * @param {string} text
+   * @returns {boolean} true wenn Bankstand erkannt
+   */
+  _checkBankBalance(text) {
+    if (!this.pendingBalanceSince || Date.now() - this.pendingBalanceSince > this.BALANCE_WINDOW_MS) return false;
+    const match = text.match(/\bbalance\b\s*[:»\-]?\s*\$?\s*([\d.,]+\s*[KkMm]?)/i);
+    if (!match) return false;
+    const raw = match[1].replace(/\s/g, '');
+    const suffix = raw.slice(-1).toLowerCase();
+    let amount = NaN;
+    if (suffix === 'k' || suffix === 'm') {
+      const num = Number.parseFloat(raw.slice(0, -1).replace(',', '.'));
+      if (Number.isFinite(num)) amount = Math.round(num * (suffix === 'k' ? 1000 : 1000000));
+    } else {
+      amount = Number.parseInt(raw.replace(/[^\d]/g, ''), 10);
+    }
+    if (!Number.isFinite(amount)) return false;
+    this.bankBalance = { amount, at: new Date().toISOString() };
+    this.pendingBalanceSince = 0;
+    logger.info(`[Minecraft] Bankstand: $${amount.toLocaleString('de-DE')}`);
+    this._broadcastStatus();
+    return true;
+  }
+
+  /**
+   * Zahlt Geld vom Bank-Account an einen Spieler aus (/pay).
+   * Nur für Admin-Aktionen (Dashboard). Validiert strikt, sendet über Queue.
+   * @param {string} ign - exakter Empfänger-IGN
+   * @param {number} amount - positive ganze Zahl
+   * @returns {{ ok: boolean, error?: string }} (Versand, keine Zustellgarantie bei Kick)
+   */
+  payout(ign, amount) {
+    const cleanIgn = sanitizeIgn(ign);
+    if (!cleanIgn) {
+      return { ok: false, error: 'Ungültiger Minecraft-Name.' };
+    }
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return { ok: false, error: 'Betrag muss eine positive ganze Zahl sein.' };
+    }
+    if (!this.bot || !this.isConnected) {
+      return { ok: false, error: 'Bot ist nicht auf dem Server.' };
+    }
+    const sent = this.sendCommand(`/pay ${cleanIgn} ${amount}`);
+    if (!sent) {
+      return { ok: false, error: 'Konnte nicht gesendet werden (offline).' };
+    }
+    logger.info(`[Minecraft] Auszahlung: $${amount.toLocaleString('de-DE')} an ${cleanIgn}`);
+    return { ok: true };
   }
 
   /**
@@ -360,6 +447,8 @@ export class MinecraftBridge {
       onlinePlayers,
       playerCount: onlinePlayers.length,
       autoReconnect: this.autoReconnect,
+      bankBalance: this.bankBalance?.amount ?? null,
+      bankBalanceAt: this.bankBalance?.at ?? null,
     };
   }
 
@@ -382,6 +471,11 @@ export class MinecraftBridge {
       // funktioniert – das wird direkt genutzt (Queue + Invite-Resends).
       this._pumpSendQueue();
       this._resendUnackedInvites();
+      // Bankstand nach dem Spawn einmalig abfragen (etwas verzoegert,
+      // damit die Chat-Sitzung steht).
+      setTimeout(() => {
+        if (this.isConnected) this.queryBankBalance();
+      }, 10000);
       // Online-Status mit der echten Spielerliste abgleichen (loest
       // veraltete is_online-Werte, z.B. nach verpassten Join/Leave-Events).
       const reconcile = () => {
@@ -480,6 +574,9 @@ export class MinecraftBridge {
     let handledCategory = MessageCategory.OTHER;
     let author = null;
     let messageContent = text;
+
+    // Bankstands-Antwort auf eigene /balance-Abfrage (parallele Erkennung)
+    this._checkBankBalance(text);
 
     // Team-Einladungs-Antworten vom Server immer zuerst prüfen
     // (z.B. "TEAM » xxx is already in a team." oder "No entity was found").

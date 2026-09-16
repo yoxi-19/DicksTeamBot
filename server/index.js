@@ -31,6 +31,7 @@ import chatRoutes from './routes/chat.js';
 import serviceRoutes, { setInstances } from './routes/services.js';
 import afkRoutes from './routes/afk.js';
 import paymentRoutes from './routes/payments.js';
+import payoutRoutes from './routes/payouts.js';
 import discordRoutes from './routes/discord.js';
 
 // Payment-Service
@@ -95,6 +96,7 @@ async function main() {
   app.use('/api/services', serviceRoutes);
   app.use('/api/afk', afkRoutes);
   app.use('/api/payments', paymentRoutes);
+  app.use('/api/payouts', payoutRoutes);
   app.use('/api/discord', discordRoutes);
 
   // Health-Check

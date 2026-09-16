@@ -127,6 +127,14 @@ export function initSocket(httpServer) {
         logger.error(`[Socket.IO] Fehler bei servicesUpdate: ${err.message}`);
       }
     });
+
+    socket.on('requestBankBalance', () => {
+      try {
+        bridgeInstance.queryBankBalance();
+      } catch (err) {
+        logger.error(`[Socket.IO] Fehler bei Bankstand-Abfrage: ${err.message}`);
+      }
+    });
   });
 
   // Event-Bus abonnieren und an alle Clients weiterleiten
