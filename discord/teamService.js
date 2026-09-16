@@ -6,7 +6,7 @@ import * as db from '../database/index.js';
 import configService from '../server/config.js';
 import logger from '../shared/logger.js';
 import { ApplicationStatus, PlayerStatus, LogCategory } from '../shared/types.js';
-import { sanitizeIgn } from '../shared/types.js';
+import { sanitizeIgn, normalizeIgn } from '../shared/types.js';
 import eventBus from '../shared/events.js';
 import { syncNickname, grantRole, removeRole, grantRoleById, removeRoleById, sendLogEmbed, sendDm, successEmbed } from './helpers.js';
 import { consumePendingPaymentConfirm, cancelRefund, deleteAnnouncedPaymentMessage } from './paymentService.js';
@@ -393,7 +393,7 @@ export async function syncAllMembers(client) {
 export function findRankTarget({ discordId = null, ign = null }) {
   let user = null;
   if (discordId) user = db.findUserByDiscord(discordId);
-  else if (ign) user = db.findUserByIgn(ign);
+  else if (ign) user = db.findUserByIgnLoose(ign);
   if (!user || !user.discord_id || !user.ign) {
     return { ok: false, error: 'Spieler nicht gefunden oder nicht verlinkt.' };
   }
@@ -467,9 +467,9 @@ export async function requestJoin(client, discordId, ign) {
     return { ok: false, error: 'Du musst zuerst verifiziert sein, bevor du dem Team beitreten kannst.' };
   }
 
-  // Ign muss mit dem verifizierten IGN übereinstimmen.
-  if (user.ign && user.ign.toLowerCase() !== cleanIgn.toLowerCase()) {
-    return { ok: false, error: `Der Name stimmt nicht mit deinem verifizierten Namen (${user.ign}) ueberein.` };
+  // Ign muss mit dem verifizierten IGN übereinstimmen (Punkt/Case egal).
+  if (user.ign && normalizeIgn(user.ign) !== normalizeIgn(cleanIgn)) {
+    return { ok: false, error: `Der Name stimmt nicht mit deinem verifizierten Namen (${user.ign}) überein.` };
   }
 
   const application = db.createApplication({ discordId, ign: cleanIgn });
@@ -499,7 +499,7 @@ export async function handleTeamJoined(client, ign) {
   const cleanIgn = sanitizeIgn(ign);
   if (!cleanIgn) return false;
 
-  const user = db.findUserByIgn(cleanIgn);
+  const user = db.findUserByIgnLoose(cleanIgn);
   if (!user || !user.discord_id) {
     logger.warn(`[Team] Kein Discord-Konto für ${cleanIgn} gefunden.`);
     return false;
@@ -568,7 +568,7 @@ export async function handleTeamLeft(client, ign) {
   const cleanIgn = sanitizeIgn(ign);
   if (!cleanIgn) return false;
 
-  const user = db.findUserByIgn(cleanIgn);
+  const user = db.findUserByIgnLoose(cleanIgn);
   if (!user || !user.discord_id) return false;
 
   db.upsertUser({

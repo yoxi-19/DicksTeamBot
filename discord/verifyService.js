@@ -5,7 +5,7 @@ import * as db from '../database/index.js';
 import configService from '../server/config.js';
 import logger from '../shared/logger.js';
 import { generateCode, PlayerStatus, LogCategory } from '../shared/types.js';
-import { sanitizeIgn } from '../shared/types.js';
+import { sanitizeIgn, normalizeIgn } from '../shared/types.js';
 import eventBus from '../shared/events.js';
 import { syncNickname, grantRole, removeRole, sendLogEmbed } from './helpers.js';
 import { sendPaymentEmbed } from './paymentService.js';
@@ -27,7 +27,7 @@ export async function startVerification(client, guild, discordId, ign) {
   }
 
   // Prüfen, ob der IGN bereits von jemand anderem verifiziert wurde.
-  const existingByIgn = db.findUserByIgn(cleanIgn);
+  const existingByIgn = db.findUserByIgnLoose(cleanIgn);
   if (existingByIgn && existingByIgn.discord_id && existingByIgn.discord_id !== discordId) {
     return { ok: false, error: 'Dieser Minecraft-Name ist bereits mit einem anderen Discord-Konto verknuepft.' };
   }
@@ -70,7 +70,8 @@ export async function completeVerification(client, code, submittedIgn) {
   const messageId = record.message_id || null;
 
   // IGN-Abgleich: Prüfen ob der Spieler, der den Code sendet, der richtige ist.
-  if (submittedIgn && record.ign.toLowerCase() !== submittedIgn.toLowerCase()) {
+  // Tolerant: Gross-/Kleinschreibung und Bedrock-Punkt (Geyser) egal.
+  if (submittedIgn && normalizeIgn(record.ign) !== normalizeIgn(submittedIgn)) {
     return { ok: false, message: 'MISMATCH', discordId: record.discord_id, messageId };
   }
 

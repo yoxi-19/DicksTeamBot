@@ -57,7 +57,7 @@ export default {
         });
         return;
       }
-      const user = db.findUserByIgn(cleanIgn);
+      const user = db.findUserByIgnLoose(cleanIgn);
       if (!user?.discord_id) {
         await interaction.reply({
           embeds: [errorEmbed('Fehler', 'Spieler nicht gefunden oder nicht verlinkt.')],

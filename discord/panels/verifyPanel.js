@@ -16,20 +16,20 @@ export function buildVerifyPanelEmbed() {
 
   return new EmbedBuilder()
     .setColor(hexToDecimal(primaryColor))
-    .setTitle('DICKS | Konto-Verifizierung')
+    .setTitle('DICKS | Team-Beitritt')
     .setDescription(
-      'Willkommen auf dem offiziellen **DICKS** Discord-Server!\n\n' +
-      'Um dem Team beizutreten, musst du deinen Minecraft-Account verknuepfen und die Team-Gebuehr bezahlen.\n\n' +
-      '**So funktioniert es:**\n' +
+      'Du willst ins Team? Alles läuft über deine **Direct Messages mit dem Bot** – schreibe nichts hier in den Kanal.\n\n' +
+      '**So geht es:**\n' +
       '1. Klicke unten auf **Beitreten**.\n' +
-      '2. Schreib deinen Minecraft-Namen (IGN) in die DM.\n' +
-      '3. Sende den Code im Spiel per DM an den Bot:\n' +
+      '2. Der Bot schreibt dich per **DM auf Discord** an – schicke ihm dort deinen Minecraft-Namen.\n' +
+      '3. Du bekommst einen persönlichen Code per **DM** – gib ihn **im Spiel (Minecraft-Chat)** ein:\n' +
       '```\n' +
-      `/msg ${botName} CODE\n` +
+      `/msg ${botName} 123456\n` +
       '```\n' +
-      '4. Bezahle die Team-Gebuehr im Spiel.\n' +
+      '*(Beispiel – dein echter Code steht in der DM, nicht hier.)*\n' +
+      '4. Bezahle die Team-Gebühr im Spiel.\n' +
       '5. Nimm die Team-Einladung im Spiel an.\n\n' +
-      '*Alles weitere passiert in deinen Direct Messages.*',
+      '**Bedrock-Spieler (Geyser):** Dein Name beginnt mit einem Punkt (.) – gib ihn exakt so **mit Punkt** an.',
     )
     .setFooter({ text: 'Team DICKS Bot • Automatische Verifizierung' })
     .setTimestamp();

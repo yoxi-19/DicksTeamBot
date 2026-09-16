@@ -34,7 +34,7 @@ export default {
     if (targetUser) {
       user = db.findUserByDiscord(targetUser.id);
     } else if (ignOption) {
-      user = db.findUserByIgn(ignOption);
+      user = db.findUserByIgnLoose(ignOption);
     } else {
       await interaction.reply({
         embeds: [errorEmbed('Fehler', 'Bitte gib entweder einen Nutzer oder einen Minecraft-Namen an.')],

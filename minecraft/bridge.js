@@ -545,13 +545,13 @@ export class MinecraftBridge {
     else if (patterns.TEAM_INVITED && patterns.TEAM_INVITED.test(text)) {
       handledCategory = MessageCategory.SYSTEM;
       logger.info(`[Minecraft] Team-Einladung erkannt: ${text}`);
-      const invitedMatch = text.match(/invited\s+([A-Za-z0-9_]{3,16})/i);
+      const invitedMatch = text.match(/invited\s+(\.?[A-Za-z0-9_]{3,16})/i);
       if (invitedMatch && this.pendingTeamInvites) {
         const tracked = this.pendingTeamInvites.get(invitedMatch[1].toLowerCase());
         if (tracked) tracked.acked = true;
       }
       if (invitedMatch && this.discordClient) {
-        const invitedUser = db.findUserByIgn(invitedMatch[1]);
+        const invitedUser = db.findUserByIgnLoose(invitedMatch[1]);
         if (invitedUser?.discord_id) {
           await announcePaymentConfirmed(invitedUser.discord_id);
         }
@@ -651,13 +651,13 @@ export class MinecraftBridge {
       return Number.parseInt(str.replace(/[^\d]/g, ''), 10);
     };
     // Hinweis: Betragsmuster enthalten optional K/M-Suffix (z.B. "$50K").
-    let match = text.match(/you\s+received\s+\$?([\d.,]+\s*[KkMm]?)\s+from\s+([A-Za-z0-9_]{3,16})/i);
+    let match = text.match(/you\s+received\s+\$?([\d.,]+\s*[KkMm]?)\s+from\s+(\.?[A-Za-z0-9_]{3,16})/i);
     if (match) return { amount: parseAmount(match[1]), sender: match[2], recipient: configuredRecipient };
 
-    match = text.match(/([A-Za-z0-9_]{3,16})\s+(?:paid|sent|transferred)\s+\$?([\d.,]+\s*[KkMm]?)(?:\s+coins?)?\s+to\s+([A-Za-z0-9_]{3,16})/i);
+    match = text.match(/(\.?[A-Za-z0-9_]{3,16})\s+(?:paid|sent|transferred)\s+\$?([\d.,]+\s*[KkMm]?)(?:\s+coins?)?\s+to\s+(\.?[A-Za-z0-9_]{3,16})/i);
     if (match) return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
 
-    match = text.match(/([A-Za-z0-9_]{3,16})\s+hat\s+\$?([\d.,]+\s*[KkMm]?)(?:\s+coins?)?\s+(?:an\s+)?([A-Za-z0-9_]{3,16})\s+(?:bezahlt|überwiesen|überwiesen)/i);
+    match = text.match(/(\.?[A-Za-z0-9_]{3,16})\s+hat\s+\$?([\d.,]+\s*[KkMm]?)(?:\s+coins?)?\s+(?:an\s+)?(\.?[A-Za-z0-9_]{3,16})\s+(?:bezahlt|ueberwiesen|überwiesen)/i);
     if (match) return { sender: match[1], amount: parseAmount(match[2]), recipient: match[3] };
 
     // Eigene Serverausgabe kann über PAYMENT konfiguriert werden. Das Format
@@ -742,6 +742,11 @@ export class MinecraftBridge {
       const nameMatch = text.match(/([A-Za-z0-9_]{3,16})\s+(?:not\s+found|is\s+not\s+online)/i);
       ign = nameMatch ? nameMatch[1] : this._lastInvitedIgn();
       hint = 'Der Spieler wurde auf dem Server nicht gefunden. Prüfe die Schreibweise und ob der Spieler online ist.';
+    } else if (/does\s+not\s+accept\s+invit/i.test(text)) {
+      errorCode = 'TEAM_INVITES_DISABLED';
+      // Kein Name in der Nachricht -> letzte Einladung nehmen
+      ign = this._lastInvitedIgn();
+      hint = 'Der Spieler hat Team-Einladungen deaktiviert. Er muss Einladungen erst erlauben (z.B. per Team-Einstellungsbefehl im Spiel), danach Nochmal drücken.';
     } else if (/invit/i.test(text)) {
       // Erfolg ("invited ...") wird von der bestehenden TEAM_INVITED-Erkennung geloggt.
       return false;
@@ -760,7 +765,7 @@ export class MinecraftBridge {
       }
     }
     if (!discordId && ign) {
-      const user = db.findUserByIgn(ign);
+      const user = db.findUserByIgnLoose(ign);
       if (user?.discord_id) discordId = user.discord_id;
     }
     if (!discordId && this.pendingTeamInvites && this.pendingTeamInvites.size > 0) {
@@ -913,7 +918,7 @@ export class MinecraftBridge {
   async _notifyTeamInviteNotSent(ign, discordId) {
     let targetId = discordId || null;
     if (!targetId && ign) {
-      const user = db.findUserByIgn(ign);
+      const user = db.findUserByIgnLoose(ign);
       if (user?.discord_id) targetId = user.discord_id;
     }
     if (targetId) consumePendingPaymentConfirm(targetId);
@@ -1045,7 +1050,7 @@ export class MinecraftBridge {
       // User trotzdem eine Fehler-DM bekommt statt gar nichts.
       let targetDiscordId = result.discordId || null;
       if (!targetDiscordId && cleanSender) {
-        const userByIgn = db.findUserByIgn(cleanSender);
+        const userByIgn = db.findUserByIgnLoose(cleanSender);
         if (userByIgn?.discord_id) targetDiscordId = userByIgn.discord_id;
       }
       if (targetDiscordId) {
@@ -1109,7 +1114,7 @@ export class MinecraftBridge {
    */
   _handlePlayerJoin(ign) {
     logger.info(`[Minecraft] Spieler beigetreten: ${ign}`);
-    const user = db.findUserByIgn(ign);
+    const user = db.findUserByIgnLoose(ign);
     if (user) {
       db.upsertUser({
         discord_id: user.discord_id,
@@ -1134,7 +1139,7 @@ export class MinecraftBridge {
    */
   async _handlePlayerLeave(ign) {
     logger.info(`[Minecraft] Spieler verlassen: ${ign}`);
-    const user = db.findUserByIgn(ign);
+    const user = db.findUserByIgnLoose(ign);
     if (user && user.discord_id) {
       // Status auf unverified zuruecksetzen
       db.upsertUser({
@@ -1207,7 +1212,7 @@ export class MinecraftBridge {
       await confirmPaymentAndInviteTeam(this.discordClient, result.user, result.payment);
     } else if (['WRONG_AMOUNT', 'WRONG_RECIPIENT'].includes(result.error)) {
       // Falscher Betrag oder Empfänger -> präzise Fehler-DM an den Spieler.
-      const user = db.findUserByIgn(senderIgn);
+      const user = db.findUserByIgnLoose(senderIgn);
       if (user && user.discord_id) {
         await sendPaymentFailedEmbed(this.discordClient, user.discord_id, result.error, {
           amount,

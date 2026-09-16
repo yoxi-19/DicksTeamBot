@@ -156,16 +156,16 @@ export const DEFAULT_SETTINGS = Object.freeze({
     PLAYER_CHAT: '^<([^>]+)>\\s*(.*)$',
     // System-Nachrichten (Breite Erfassung)
     SYSTEM: '^\\[(Server|Info|System)\\]\\s*(.*)$',
-    // Spieler join (z.B. "Spieler joined the game")
-    JOIN: '^(\\w{1,16})\\s+joined the game$',
+    // Spieler join (z.B. "Spieler joined the game", Bedrock mit fuehrendem Punkt)
+    JOIN: '^(\\.?[A-Za-z0-9_]{3,16})\\s+joined the game$',
     // Spieler leave
-    LEAVE: '^(\\w{1,16})\\s+left the game$',
+    LEAVE: '^(\\.?[A-Za-z0-9_]{3,16})\\s+left the game$',
     // Team-Einladung gesendet (z.B. "Du hast Spieler in dein Team eingeladen")
-    TEAM_INVITED: 'invited\\s+(\\w{1,16})\\s+(?:to|into)',
+    TEAM_INVITED: 'invited\\s+(\\.?[A-Za-z0-9_]{3,16})\\s+(?:to|into)',
     // Team-Beitritt (z.B. "Spieler ist dem Team beigetreten")
-    TEAM_JOIN: '(\\w{1,16})\\s+(?:has\\s+)?joined\\s+(?:your|the)\\s+team',
+    TEAM_JOIN: '(\\.?[A-Za-z0-9_]{3,16})\\s+(?:has\\s+)?joined\\s+(?:your|the)\\s+team',
     // Team verlassen
-    TEAM_LEFT: '(\\w{1,16})\\s+(?:has\\s+)?left\\s+(?:your|the)\\s+team',
+    TEAM_LEFT: '(\\.?[A-Za-z0-9_]{3,16})\\s+(?:has\\s+)?left\\s+(?:your|the)\\s+team',
     // Zahlung / Transfer (z.B. "Spieler hat 250000 $ an Empfänger überwiesen")
     PAYMENT: '(?:you\\s+received\\s+\\$?[\\d.,]+\\s+from\\s+\\w{1,16}|\\w{1,16}\\s+(?:paid|sent|transferred|hat)\\b.*(?:to|an|an\\s+den|bezahlt|überwiesen))',
     // Auktion / Handel (z.B. "ORDERS » ... created an ... order")
@@ -205,14 +205,26 @@ export function hexToDecimal(hex) {
 
 /**
  * Sanitisiert einen Minecraft-Namen (3-16 Zeichen, alphanumerisch plus Unterstriche).
+ * Bedrock-Spieler (Geyser) haben einen fuehrenden Punkt – der ist erlaubt.
  * @param {string} name
  * @returns {string|null} Sanitisierter Name oder null bei Ungültigkeit.
  */
 export function sanitizeIgn(name) {
   if (typeof name !== 'string') return null;
   const trimmed = name.trim();
-  if (!/^[A-Za-z0-9_]{3,16}$/.test(trimmed)) return null;
+  if (!/^\.?[A-Za-z0-9_]{3,16}$/.test(trimmed)) return null;
   return trimmed;
+}
+
+/**
+ * Normalisiert einen Minecraft-Namen zum Vergleichen:
+ * fuehrender Bedrock-Punkt weg, alles klein. Damit matchen
+ * "Femspiess", ".FemspiesS" und "FEMSPIESS" einander.
+ * @param {string} name
+ * @returns {string}
+ */
+export function normalizeIgn(name) {
+  return String(name || '').trim().replace(/^\.+/, '').toLowerCase();
 }
 
 /**

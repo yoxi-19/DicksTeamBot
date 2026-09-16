@@ -37,7 +37,7 @@ router.get('/discord/:discordId', authenticateToken, (req, res) => {
 // GET /api/players/ign/:ign - Spieler nach Minecraft-Name
 router.get('/ign/:ign', authenticateToken, (req, res) => {
   try {
-    const user = db.findUserByIgn(req.params.ign);
+    const user = db.findUserByIgnLoose(req.params.ign);
     if (!user) {
       return res.status(404).json({ error: 'Spieler nicht gefunden.' });
     }

@@ -4,7 +4,7 @@
 import * as db from '../database/index.js';
 import configService from '../server/config.js';
 import logger from '../shared/logger.js';
-import { PlayerStatus, PaymentStatus, LogCategory, sanitizeIgn } from '../shared/types.js';
+import { PlayerStatus, PaymentStatus, LogCategory, sanitizeIgn, normalizeIgn } from '../shared/types.js';
 import eventBus from '../shared/events.js';
 import { syncNickname, grantRole, removeRole, sendLogEmbed, sendDm } from './helpers.js';
 
@@ -153,8 +153,8 @@ export async function buildPaymentInstructionEmbed(payment) {
  * @returns {Promise<{ ok: boolean, payment?: object, error?: string }>}
  */
 export async function validatePayment(client, senderIgn, amount, recipient, chatMessage) {
-  // Spieler finden
-  const user = db.findUserByIgn(senderIgn);
+  // Spieler finden (tolerant: Case + Bedrock-Punkt egal)
+  const user = db.findUserByIgnLoose(senderIgn);
   if (!user || !user.discord_id) {
     logger.info(`[Payment] Kein verifizierter Spieler für IGN: ${senderIgn}`);
     return { ok: false, error: 'UNKNOWN_PLAYER' };
@@ -173,7 +173,7 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
     return { ok: false, error: 'NO_ACTIVE_PAYMENT' };
   }
 
-  if (user.ign.toLowerCase() !== payment.ign.toLowerCase()) {
+  if (normalizeIgn(user.ign) !== normalizeIgn(payment.ign)) {
     return { ok: false, error: 'WRONG_IGN' };
   }
 
@@ -182,10 +182,13 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
     return { ok: false, error: 'WRONG_RECIPIENT', recipient, requiredRecipient: payment.recipient };
   }
 
-  // Genau der für diesen Vorgang gespeicherte Betrag ist maßgeblich.
-  if (amount !== payment.amount) {
-    logger.info(`[Payment] Falscher Betrag: $${amount} (erforderlich: $${payment.amount})`);
+  // Betrag muss mindestens dem erforderlichen entsprechen (mehr ist ok).
+  if (!Number.isFinite(amount) || amount < payment.amount) {
+    logger.info(`[Payment] Zu wenig: $${amount} (erforderlich: $${payment.amount})`);
     return { ok: false, error: 'WRONG_AMOUNT', amount, requiredAmount: payment.amount };
+  }
+  if (amount > payment.amount) {
+    logger.info(`[Payment] Überzahlt: $${amount} statt $${payment.amount} – akzeptiert.`);
   }
 
   // Payment als bestätigt markieren

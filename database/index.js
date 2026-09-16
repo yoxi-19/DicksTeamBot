@@ -106,6 +106,21 @@ export function findUserByIgn(ign) {
 }
 
 /**
+ * Findet einen Benutzer anhand des Minecraft-Namens, tolerant:
+ * Gross-/Kleinschreibung und fuehrender Bedrock-Punkt (Geyser) egal.
+ * @param {string} ign
+ * @returns {object|null}
+ */
+export function findUserByIgnLoose(ign) {
+  const exact = getDb().prepare('SELECT * FROM users WHERE ign = ?').get(ign);
+  if (exact) return exact;
+  const wanted = String(ign || '').trim().replace(/^\.+/, '').toLowerCase();
+  if (!wanted) return null;
+  const users = getDb().prepare('SELECT * FROM users').all();
+  return users.find((u) => String(u.ign || '').trim().replace(/^\.+/, '').toLowerCase() === wanted) || null;
+}
+
+/**
  * Findet einen Benutzer anhand der ID.
  * @param {number} id
  * @returns {object|null}
