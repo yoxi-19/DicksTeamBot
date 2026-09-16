@@ -27,6 +27,7 @@ export default {
       { name: '/setup-config', desc: 'Zeigt oder ändert Bot-Einstellungen' },
       { name: '/verify-user', desc: 'Verifizierung erzwingen oder entfernen' },
       { name: '/team-invite', desc: 'Team-Einladung im Spiel senden' },
+      { name: '/team-forcejoin', desc: 'Spieler direkt ins Team setzen (ohne Beitritt)' },
       { name: '/team-remove', desc: 'Spieler aus dem Team entfernen' },
       { name: '/team-sync', desc: 'Alle Team-Rollen synchronisieren' },
       { name: '/team-rankup', desc: 'Mitglied einen Rang hochstufen' },
