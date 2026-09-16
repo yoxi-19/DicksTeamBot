@@ -74,9 +74,10 @@ async function handleVerifyButton(interaction, client) {
     return;
   }
 
-  // Team voll: keine neuen Vorgänge (laufende Zahlungen/Verifizierungen
-  // duerfen trotzdem fortgesetzt werden und landen im normalen Ablauf).
-  if ((!user || user.status === PlayerStatus.UNVERIFIED) && configService.get('team', {}).isFull) {
+  // Team voll: keine neuen Vorgänge (laufende Zahlungen duerfen trotzdem
+  // fortgesetzt werden und landen im normalen Ablauf).
+  // Gilt fuer alle, die noch nicht zahlen oder im Team sind.
+  if (configService.get('team', {}).isFull && (!user || user.status === PlayerStatus.UNVERIFIED || user.status === PlayerStatus.VERIFIED)) {
     await interaction.reply({
       embeds: [errorEmbed('Team ist voll', 'Aktuell können keine neuen Mitglieder aufgenommen werden. Versuch es später erneut.')],
       ephemeral: true,
@@ -155,7 +156,8 @@ async function handleTeamButton(interaction, client) {
   }
 
   // Team voll: keine neuen Vorgänge (laufende Vorgänge duerfen fortgesetzt werden).
-  if ((!user || user.status === PlayerStatus.UNVERIFIED) && configService.get('team', {}).isFull) {
+  // Gilt fuer alle, die noch nicht zahlen oder im Team sind.
+  if (configService.get('team', {}).isFull && (!user || user.status === PlayerStatus.UNVERIFIED || user.status === PlayerStatus.VERIFIED)) {
     await interaction.reply({
       embeds: [errorEmbed('Team ist voll', 'Aktuell können keine neuen Mitglieder aufgenommen werden. Versuch es später erneut.')],
       ephemeral: true,
