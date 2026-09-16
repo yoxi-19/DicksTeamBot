@@ -43,6 +43,10 @@ export class MinecraftBridge {
     this.lastSendAt = 0;
     this.MIN_SEND_INTERVAL_MS = 1500;
     this.MAX_QUEUE_SIZE = 50;
+    // Letzte tatsächlich gesendete Nachricht (für Kick-Recovery).
+    this.lastSent = null;
+    this.KICK_RECOVER_WINDOW_MS = 5000;
+    this.MAX_SEND_RETRIES = 2;
     // Zeitpunkt des letzten Disconnects/Kicks. Nach dem Spawn gibt es ein
     // kurzes Fenster, in dem Senden funktioniert – das wird sofort genutzt.
     // Der Refund nutzt den Zeitstempel zur Versandkontrolle.
@@ -361,21 +365,22 @@ export class MinecraftBridge {
    */
   sendMessage(message) {
     if (!this.bot || !this.isConnected) {
-      if (this.sendQueue.length >= this.MAX_QUEUE_SIZE) {
-        this.sendQueue.shift();
-        logger.warn('[Minecraft] Sende-Queue voll – aelteste Nachricht verworfen.');
-      }
-      this.sendQueue.push(message);
+      this._enqueueSend(message);
       logger.info(`[Minecraft] Offline eingereiht (${this.sendQueue.length}): ${message}`);
       return false;
     }
+    this._enqueueSend(message);
+    this._pumpSendQueue();
+    return true;
+  }
+
+  /** Reiht eine Nachricht ein (mit Längenbegrenzung). */
+  _enqueueSend(message, retries = 0) {
     if (this.sendQueue.length >= this.MAX_QUEUE_SIZE) {
       this.sendQueue.shift();
       logger.warn('[Minecraft] Sende-Queue voll – aelteste Nachricht verworfen.');
     }
-    this.sendQueue.push(message);
-    this._pumpSendQueue();
-    return true;
+    this.sendQueue.push({ text: message, retries });
   }
 
   /**
@@ -391,15 +396,16 @@ export class MinecraftBridge {
         this.sendQueueTimer = setTimeout(tick, wait);
         return;
       }
-      const message = this.sendQueue.shift();
+      const item = this.sendQueue.shift();
       try {
-        this.bot.chat(message);
+        this.bot.chat(item.text);
         this.lastSendAt = Date.now();
-        logger.debug(`[Minecraft] Gesendet (${this.sendQueue.length} wartend): ${message}`);
+        this.lastSent = { text: item.text, retries: item.retries || 0, at: this.lastSendAt };
+        logger.debug(`[Minecraft] Gesendet (${this.sendQueue.length} wartend): ${item.text}`);
       } catch (err) {
         logger.error(`[Minecraft] Fehler beim Senden: ${err.message}`);
         // Nachricht behalten – nach Reconnect geht es weiter.
-        this.sendQueue.unshift(message);
+        this.sendQueue.unshift(item);
         return;
       }
       if (this.sendQueue.length > 0) {
@@ -407,6 +413,26 @@ export class MinecraftBridge {
       }
     };
     tick();
+  }
+
+  /**
+   * Rettet die zuletzt gesendete Nachricht bei Kick/Disconnect.
+   * Wurde sie kurz vorher abgeschickt, ist unklar ob sie ankam – nach dem
+   * Spawn geht sie automatisch nochmal raus. Ausgenommen: /pay (Bank-Schutz,
+   * hat eigene sichere Flows) und /team invite (eigenes Retry-System).
+   */
+  _recoverLastSend() {
+    const last = this.lastSent;
+    this.lastSent = null;
+    if (!last || Date.now() - last.at > this.KICK_RECOVER_WINDOW_MS) return;
+    if ((last.retries || 0) >= this.MAX_SEND_RETRIES) {
+      logger.warn(`[Minecraft] Nachricht nach ${last.retries} Versuchen aufgegeben: ${last.text}`);
+      return;
+    }
+    if (/^\s*\/(pay|team\s+invite)\b/i.test(last.text)) return;
+    if (this.sendQueue.some((item) => item.text === last.text)) return;
+    this.sendQueue.unshift({ text: last.text, retries: (last.retries || 0) + 1 });
+    logger.warn(`[Minecraft] Nachricht wegen Disconnect eingereiht (Versuch ${(last.retries || 0) + 1}): ${last.text}`);
   }
 
   /**
@@ -498,6 +524,7 @@ export class MinecraftBridge {
       this.isConnected = false;
       this.lastDisconnectAt = Date.now();
       logger.warn(`[Minecraft] Verbindung getrennt: ${reason}`);
+      this._recoverLastSend();
       try {
         db.setAllUsersOffline();
         eventBus.emitToDashboard('playerUpdate', db.listUsers());
@@ -513,6 +540,7 @@ export class MinecraftBridge {
       this.lastDisconnectAt = Date.now();
       const parsedReason = typeof reason === 'string' ? reason : JSON.stringify(reason);
       logger.warn(`[Minecraft] Vom Server gekickt: ${parsedReason}`);
+      this._recoverLastSend();
       try {
         db.setAllUsersOffline();
         eventBus.emitToDashboard('playerUpdate', db.listUsers());
