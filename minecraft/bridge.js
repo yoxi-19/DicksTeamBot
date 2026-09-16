@@ -311,7 +311,9 @@ export class MinecraftBridge {
    */
   _checkBankBalance(text) {
     if (!this.pendingBalanceSince || Date.now() - this.pendingBalanceSince > this.BALANCE_WINDOW_MS) return false;
-    const match = text.match(/\bbalance\b\s*[:»\-]?\s*\$?\s*([\d.,]+\s*[KkMm]?)/i);
+    // Formate: "BALANCE » DicksTeamBank has $551.06K." oder "Balance: $1,250,000"
+    let match = text.match(/\bbalance\b.{0,40}?\bhas\b\s+\$?([\d.,]+\s*[KkMm]?)/i)
+      || text.match(/\bbalance\b\s*[:»\-]?\s*\$?\s*([\d.,]+\s*[KkMm]?)/i);
     if (!match) return false;
     const raw = match[1].replace(/\s/g, '');
     const suffix = raw.slice(-1).toLowerCase();
