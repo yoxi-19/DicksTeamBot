@@ -401,6 +401,12 @@ export class MinecraftBridge {
         this.bot.chat(item.text);
         this.lastSendAt = Date.now();
         this.lastSent = { text: item.text, retries: item.retries || 0, at: this.lastSendAt };
+        // Antwort-Fenster an den echten Versand koppeln (nicht an das
+        // Einreihen): Nach Kick + Resend gilt sonst ein abgelaufenes Fenster
+        // und die Antwort wird ignoriert.
+        if (/^\s*\/balance\b/i.test(item.text)) {
+          this.pendingBalanceSince = Date.now();
+        }
         logger.debug(`[Minecraft] Gesendet (${this.sendQueue.length} wartend): ${item.text}`);
       } catch (err) {
         logger.error(`[Minecraft] Fehler beim Senden: ${err.message}`);
