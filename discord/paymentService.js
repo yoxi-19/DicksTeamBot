@@ -10,9 +10,16 @@ import { syncNickname, grantRole, removeRole, sendLogEmbed, sendDm } from './hel
 
 /**
  * Erstellt einen aktiven Payment-Eintrag falls keiner existiert und setzt
- * den User auf WAITING_PAYMENT. Idempotent – rueckgabewert ist immer gültig.
+ * den User auf WAITING_PAYMENT. Idempotent – rueckgabewert ist immer gueltig.
+ * Schutz vor Doppel-Pay: Wurde die letzte Zahlung bereits bestaetigt (Team-
+ * Einladung laeuft oder ist fehlgeschlagen), wird KEIN neues Payment angelegt.
  */
 function ensureActivePayment(discordId, ign) {
+  const latest = db.findLatestPayment(discordId);
+  if (latest && latest.status === PaymentStatus.CONFIRMED) {
+    logger.info(`[Payment] Keine Neuanlage: Payment #${latest.id} bereits bestaetigt.`);
+    return latest;
+  }
   const existing = db.findActivePayment(discordId);
   if (existing) return existing;
 
@@ -56,6 +63,28 @@ export async function sendPaymentEmbed(client, discordId, ign) {
 
   const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
 
+  // Bereits bezahlt: keine neue Aufforderung, sondern Status-Info.
+  if (payment.status === PaymentStatus.CONFIRMED) {
+    const embed = new EmbedBuilder()
+      .setColor(0x57F287)
+      .setTitle('Zahlung bereits erkannt')
+      .setDescription(
+        `Deine Zahlung (**$${amount.toLocaleString('de-DE')}**) wurde bereits erkannt.\n\n` +
+        `Bitte nicht erneut zahlen! Prüfe deine DMs auf die Team-Einladung oder eine Fehlernachricht mit Nochmal-Button.`,
+      )
+      .setFooter({ text: `Payment-ID: ${payment.id}` })
+      .setTimestamp();
+    try {
+      const user = await client.users.fetch(discordId);
+      if (!user) return;
+      const dm = await user.createDM();
+      await dm.send({ embeds: [embed] });
+    } catch (err) {
+      logger.warn(`[Payment] Konnte Status-Embed nicht senden an ${discordId}: ${err.message}`);
+    }
+    return;
+  }
+
   const embed = new EmbedBuilder()
     .setColor(0xFEE75C)
     .setTitle('Team-Beitritt – Einzahlung erforderlich')
@@ -97,6 +126,13 @@ export async function handlePaymentButton(client, discordId, ign) {
   const user = db.findUserByDiscord(discordId);
   if (!user || (user.status !== PlayerStatus.VERIFIED && user.status !== PlayerStatus.WAITING_PAYMENT)) {
     return { ok: false, error: 'Du musst zuerst verifiziert sein.' };
+  }
+
+  // Doppel-Pay-Schutz: Bereits bestaetigte Zahlung -> keine neue Anweisung,
+  // sondern Hinweis auf Einladung/Fehler-DM (dort liegt der Nochmal-Button).
+  const latest = db.findLatestPayment(discordId);
+  if (latest && latest.status === PaymentStatus.CONFIRMED) {
+    return { ok: false, error: 'Deine Zahlung wurde bereits erkannt – bitte nicht erneut zahlen! Prüfe deine DMs auf die Team-Einladung oder eine Fehlernachricht.' };
   }
 
   // Idempotent: vorhandenen aktiven Payment-Eintrag weiterverwenden,
@@ -171,6 +207,17 @@ export async function validatePayment(client, senderIgn, amount, recipient, chat
   if (!payment) {
     logger.info(`[Payment] Kein aktives Payment für ${senderIgn}`);
     return { ok: false, error: 'NO_ACTIVE_PAYMENT' };
+  }
+
+  // Abgelaufene Payments werden live abgelehnt (nicht nur per 60s-Checker).
+  if (payment.timeout_at && new Date(payment.timeout_at).getTime() <= Date.now()) {
+    logger.info(`[Payment] Payment #${payment.id} abgelaufen – abgelehnt.`);
+    db.updatePaymentStatus(payment.id, PaymentStatus.TIMEOUT);
+    if (user.status === PlayerStatus.WAITING_PAYMENT) {
+      db.upsertUser({ discord_id: user.discord_id, status: PlayerStatus.VERIFIED });
+    }
+    eventBus.emitToDashboard('paymentUpdate', db.listPayments());
+    return { ok: false, error: 'TIMEOUT_EXPIRED' };
   }
 
   if (normalizeIgn(user.ign) !== normalizeIgn(payment.ign)) {
