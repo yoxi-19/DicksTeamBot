@@ -157,13 +157,32 @@ export async function setTeamOwner(client, rank, discordId, actorTag = 'System')
     return { ok: true, rank, owner: null };
   }
 
-  // Neuen Owner auf den Rang setzen (inkl. Rang-Rolle), dann Extra-Rolle geben.
+  // Neuen Owner auf den Rang setzen (inkl. Rang-Rolle).
   // Danach Config frisch lesen: setUserRank kann Slots veraendert haben.
   const rankResult = await setUserRank(client, discordId, rank, actorTag, { skipLog: true });
   if (!rankResult.ok) return rankResult;
 
   const fresh = getRankConfig();
   const freshOwners = { ...fresh.owners };
+  // Owner darf nur EIN Team besitzen: alte Owner-Slots dieses Users auf
+  // anderen Raengen raeumen (inkl. alter Owner-Rollen).
+  if (guild) {
+    for (let r = 1; r <= fresh.count; r++) {
+      if (r !== rank && freshOwners[String(r)] === discordId) {
+        delete freshOwners[String(r)];
+        const staleOwnerRole = getOwnerRoleId(r, fresh);
+        if (staleOwnerRole) {
+          await removeRoleById(guild, discordId, staleOwnerRole, 'Ownerwechsel');
+        }
+      }
+    }
+  } else {
+    for (let r = 1; r <= fresh.count; r++) {
+      if (r !== rank && freshOwners[String(r)] === discordId) {
+        delete freshOwners[String(r)];
+      }
+    }
+  }
   freshOwners[String(rank)] = discordId;
   const updateResult = configService.update({ teamRanks: { ...fresh, owners: freshOwners } });
   if (!updateResult.ok) return { ok: false, error: updateResult.errors.join('\n') };
