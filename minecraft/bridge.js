@@ -424,7 +424,7 @@ export class MinecraftBridge {
       logger.warn(`[Minecraft] Nachricht nach ${last.retries} Versuchen aufgegeben: ${last.text}`);
       return;
     }
-    if (/^\s*\/(pay|team\s+invite)\b/i.test(last.text)) return;
+    if (/^\s*\/(pay|team\s+invite|balance)\b/i.test(last.text)) return;
     if (this.sendQueue.some((item) => item.text === last.text)) return;
     this.sendQueue.unshift({ text: last.text, retries: (last.retries || 0) + 1 });
     logger.warn(`[Minecraft] Nachricht wegen Disconnect eingereiht (Versuch ${(last.retries || 0) + 1}): ${last.text}`);
